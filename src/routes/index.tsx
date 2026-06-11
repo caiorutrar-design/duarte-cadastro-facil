@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Instagram, Loader2, CheckCircle2, MapPin, Phone, Mail, User, MessageSquare } from "lucide-react";
+import { Instagram, Loader2, CheckCircle2, MapPin, Phone, Mail, User, MessageSquare, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/theme-provider";
 import duarteLogo from "@/assets/duarte-logo.png";
 
 export const Route = createFileRoute("/")({
@@ -22,7 +23,6 @@ export const Route = createFileRoute("/")({
   component: CadastroPage,
 });
 
-// Municípios do Maranhão (lista resumida dos principais)
 const MUNICIPIOS_MA = [
   "São Luís", "Imperatriz", "São José de Ribamar", "Timon", "Caxias", "Codó",
   "Paço do Lumiar", "Açailândia", "Bacabal", "Balsas", "Barra do Corda",
@@ -32,24 +32,31 @@ const MUNICIPIOS_MA = [
   "Cururupu", "Vargem Grande", "Santa Luzia", "Lago da Pedra", "Outro",
 ];
 
-function maskPhone(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
-  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d.length ? `(${d}` : "";
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
+function maskCep(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+type ViaCep = {
+  cep?: string; logradouro?: string; bairro?: string;
+  localidade?: string; uf?: string; erro?: boolean;
+};
 
 function CadastroPage() {
   const [form, setForm] = useState({
-    nome: "",
-    telefone: "",
-    email: "",
-    municipio: "",
-    municipioBusca: "",
-    instagram: "",
-    observacoes: "",
+    nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
+    instagram: "", observacoes: "",
+    cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
   });
   const [loading, setLoading] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const sugestoes = useMemo(() => {
@@ -59,49 +66,77 @@ function CadastroPage() {
   }, [form.municipioBusca]);
 
   const obsRestantes = 500 - form.observacoes.length;
-
   const update = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  async function buscarCep(cepValue: string) {
+    const digits = cepValue.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data: ViaCep = await res.json();
+      if (data.erro) {
+        toast.error("CEP não encontrado.");
+        return;
+      }
+      setForm((p) => ({
+        ...p,
+        endereco: data.logradouro ?? "",
+        bairro: data.bairro ?? "",
+        cidade_endereco: data.localidade ?? "",
+        uf: data.uf ?? "",
+        municipio: p.municipio || data.localidade || "",
+      }));
+      toast.success("Endereço encontrado!");
+    } catch {
+      toast.error("Falha ao consultar CEP. Tente novamente.");
+    } finally {
+      setCepLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    if (form.nome.trim().length < 3) {
-      toast.error("Informe seu nome completo (mín. 3 caracteres).");
-      return;
-    }
-    const telDigits = form.telefone.replace(/\D/g, "");
-    if (telDigits.length < 10) {
-      toast.error("Telefone inválido. Use o formato (XX) XXXXX-XXXX.");
-      return;
-    }
-    if (!form.municipio.trim()) {
-      toast.error("Selecione ou informe seu município.");
-      return;
-    }
+    if (form.nome.trim().length < 3) return toast.error("Informe seu nome completo (mín. 3 caracteres).");
+    if (form.telefone.replace(/\D/g, "").length < 10) return toast.error("Telefone inválido. Use (XX) XXXXX-XXXX.");
+    if (!form.municipio.trim()) return toast.error("Selecione ou informe seu município.");
 
     setLoading(true);
     try {
-      const instagramClean = form.instagram.trim().replace(/^@+/, "");
+      const ig = form.instagram.trim().replace(/^@+/, "");
       const { error } = await supabase.from("cadastros_clientes").insert({
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
         email: form.email.trim().toLowerCase(),
         municipio: form.municipio.trim(),
-        instagram: instagramClean ? `@${instagramClean}` : null,
+        instagram: ig ? `@${ig}` : null,
         observacoes: form.observacoes.trim() || null,
+        cep: form.cep.trim() || null,
+        endereco: form.endereco.trim() || null,
+        bairro: form.bairro.trim() || null,
+        cidade_endereco: form.cidade_endereco.trim() || null,
+        uf: form.uf.trim().toUpperCase() || null,
       });
 
       if (error) {
-        console.error(error);
-        toast.error("Não foi possível concluir seu cadastro. Tente novamente em instantes.");
+        // 23505 = unique_violation
+        if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
+          toast.error("Este e-mail já está cadastrado.", {
+            description: "Use outro endereço ou entre em contato com a equipe.",
+          });
+        } else {
+          console.error(error);
+          toast.error("Não foi possível concluir seu cadastro. Tente novamente.");
+        }
         return;
       }
 
       toast.success("Cadastro realizado com sucesso!");
       setSuccess(true);
       setForm({
-        nome: "", telefone: "", email: "", municipio: "",
-        municipioBusca: "", instagram: "", observacoes: "",
+        nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
+        instagram: "", observacoes: "",
+        cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
       });
     } catch (err) {
       console.error(err);
@@ -115,12 +150,7 @@ function CadastroPage() {
     <div className="relative min-h-screen overflow-hidden bg-background">
       <Toaster richColors position="top-center" />
 
-      {/* Backdrop com gradiente da marca */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10"
-        style={{ background: "var(--gradient-hero)" }}
-      />
+      <div aria-hidden className="absolute inset-0 -z-10" style={{ background: "var(--gradient-hero)" }} />
       <div
         aria-hidden
         className="absolute inset-0 -z-10 opacity-30"
@@ -130,14 +160,19 @@ function CadastroPage() {
         }}
       />
 
-      <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-10 sm:py-16">
-        {/* Header / Logo */}
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+        <Link
+          to="/admin"
+          className="hidden rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:inline-flex"
+        >
+          Admin
+        </Link>
+        <ThemeToggle />
+      </div>
+
+      <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-12 sm:py-16">
         <header className="mb-8 flex flex-col items-center text-center">
-          <img
-            src={duarteLogo}
-            alt="Duarte Jr."
-            className="h-20 w-auto drop-shadow-2xl sm:h-24"
-          />
+          <img src={duarteLogo} alt="Duarte Jr." className="h-20 w-auto drop-shadow-2xl sm:h-24" />
           <p className="mt-4 max-w-xl text-sm font-medium uppercase tracking-[0.2em] text-white/80 sm:text-base">
             Movimento Duarte • Cadastro Oficial
           </p>
@@ -146,124 +181,94 @@ function CadastroPage() {
           </h1>
         </header>
 
-        {/* Card do formulário */}
-        <section className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-[var(--shadow-elegant)] ring-1 ring-black/5 sm:p-10">
+        <section className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-[var(--shadow-elegant)] ring-1 ring-black/5 sm:p-10 dark:ring-white/5">
           {success ? (
             <SuccessState onReset={() => setSuccess(false)} />
           ) : (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
-                  Faça parte do movimento
-                </h2>
+                <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Faça parte do movimento</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Preencha seus dados para receber novidades, convites para encontros e
-                  mobilizações em sua região.
+                  Preencha seus dados para receber novidades, convites para encontros e mobilizações em sua região.
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                {/* Nome */}
-                <Field
-                  id="nome"
-                  label="Nome completo"
-                  required
-                  icon={<User className="size-4" />}
-                >
-                  <Input
-                    id="nome"
-                    type="text"
-                    autoComplete="name"
-                    required
-                    minLength={3}
-                    maxLength={120}
+                <Field id="nome" label="Nome completo" required icon={<User className="size-4" />}>
+                  <Input id="nome" type="text" autoComplete="name" required minLength={3} maxLength={120}
                     placeholder="Como você gostaria de ser chamado(a)"
-                    value={form.nome}
-                    onChange={(e) => update("nome", e.target.value)}
-                    className="pl-10"
-                  />
+                    value={form.nome} onChange={(e) => update("nome", e.target.value)} className="pl-10" />
                 </Field>
 
                 <div className="grid gap-5 sm:grid-cols-2">
-                  {/* Telefone */}
-                  <Field
-                    id="telefone"
-                    label="Telefone / WhatsApp"
-                    required
-                    icon={<Phone className="size-4" />}
-                  >
-                    <Input
-                      id="telefone"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      required
-                      placeholder="(00) 00000-0000"
-                      value={form.telefone}
-                      onChange={(e) => update("telefone", maskPhone(e.target.value))}
-                      className="pl-10"
-                    />
+                  <Field id="telefone" label="Telefone / WhatsApp" required icon={<Phone className="size-4" />}>
+                    <Input id="telefone" type="tel" inputMode="tel" autoComplete="tel" required
+                      placeholder="(00) 00000-0000" value={form.telefone}
+                      onChange={(e) => update("telefone", maskPhone(e.target.value))} className="pl-10" />
                   </Field>
-
-                  {/* Email */}
-                  <Field
-                    id="email"
-                    label="E-mail"
-                    required
-                    icon={<Mail className="size-4" />}
-                  >
-                    <Input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      maxLength={160}
-                      placeholder="voce@exemplo.com"
-                      value={form.email}
-                      onChange={(e) => update("email", e.target.value)}
-                      className="pl-10"
-                    />
+                  <Field id="email" label="E-mail" required icon={<Mail className="size-4" />}>
+                    <Input id="email" type="email" autoComplete="email" required maxLength={160}
+                      placeholder="voce@exemplo.com" value={form.email}
+                      onChange={(e) => update("email", e.target.value)} className="pl-10" />
                   </Field>
                 </div>
 
-                {/* Município com autocomplete */}
-                <Field
-                  id="municipio"
-                  label="Município"
-                  required
-                  icon={<MapPin className="size-4" />}
-                >
-                  <Input
-                    id="municipio"
-                    type="text"
-                    required
-                    list="municipios-list"
-                    autoComplete="off"
+                {/* CEP + autocomplete */}
+                <div className="rounded-xl border border-border bg-muted/40 p-4">
+                  <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
+                    <Field id="cep" label="CEP" icon={<Search className="size-4" />}>
+                      <Input
+                        id="cep" inputMode="numeric" placeholder="00000-000" maxLength={9}
+                        value={form.cep}
+                        onChange={(e) => {
+                          const masked = maskCep(e.target.value);
+                          update("cep", masked);
+                          if (masked.replace(/\D/g, "").length === 8) buscarCep(masked);
+                        }}
+                        className="pl-10"
+                      />
+                      {cepLoading && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Loader2 className="size-3 animate-spin" /> Buscando endereço...
+                        </p>
+                      )}
+                    </Field>
+                    <Field id="endereco" label="Endereço">
+                      <Input id="endereco" placeholder="Rua, número, complemento"
+                        value={form.endereco} onChange={(e) => update("endereco", e.target.value)} maxLength={200} />
+                    </Field>
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-[1.5fr_1.5fr_0.5fr]">
+                    <Field id="bairro" label="Bairro">
+                      <Input id="bairro" placeholder="Bairro" value={form.bairro}
+                        onChange={(e) => update("bairro", e.target.value)} maxLength={120} />
+                    </Field>
+                    <Field id="cidade_endereco" label="Cidade">
+                      <Input id="cidade_endereco" placeholder="Cidade" value={form.cidade_endereco}
+                        onChange={(e) => update("cidade_endereco", e.target.value)} maxLength={120} />
+                    </Field>
+                    <Field id="uf" label="UF">
+                      <Input id="uf" placeholder="UF" value={form.uf} maxLength={2}
+                        onChange={(e) => update("uf", e.target.value.toUpperCase())} />
+                    </Field>
+                  </div>
+                </div>
+
+                <Field id="municipio" label="Município (base eleitoral)" required icon={<MapPin className="size-4" />}>
+                  <Input id="municipio" type="text" required list="municipios-list" autoComplete="off"
                     placeholder="Digite seu município"
                     value={form.municipio || form.municipioBusca}
-                    onChange={(e) => {
-                      update("municipio", e.target.value);
-                      update("municipioBusca", e.target.value);
-                    }}
-                    className="pl-10"
-                  />
+                    onChange={(e) => { update("municipio", e.target.value); update("municipioBusca", e.target.value); }}
+                    className="pl-10" />
                   <datalist id="municipios-list">
-                    {MUNICIPIOS_MA.map((m) => (
-                      <option key={m} value={m} />
-                    ))}
+                    {MUNICIPIOS_MA.map((m) => <option key={m} value={m} />)}
                   </datalist>
                   {sugestoes.length > 0 && form.municipioBusca && (
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {sugestoes.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => {
-                            update("municipio", s);
-                            update("municipioBusca", "");
-                          }}
-                          className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent hover:text-accent-foreground"
-                        >
+                        <button key={s} type="button"
+                          onClick={() => { update("municipio", s); update("municipioBusca", ""); }}
+                          className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent hover:text-accent-foreground">
                           {s}
                         </button>
                       ))}
@@ -271,66 +276,30 @@ function CadastroPage() {
                   )}
                 </Field>
 
-                {/* Instagram */}
-                <Field
-                  id="instagram"
-                  label="Instagram (opcional)"
-                  icon={<Instagram className="size-4" />}
-                >
+                <Field id="instagram" label="Instagram (opcional)" icon={<Instagram className="size-4" />}>
                   <div className="relative">
-                    <Input
-                      id="instagram"
-                      type="text"
-                      maxLength={60}
-                      placeholder="seu_usuario"
+                    <Input id="instagram" type="text" maxLength={60} placeholder="seu_usuario"
                       value={form.instagram}
                       onChange={(e) => update("instagram", e.target.value.replace(/^@+/, ""))}
-                      className="pl-16"
-                    />
-                    <span className="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                      @
-                    </span>
+                      className="pl-16" />
+                    <span className="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">@</span>
                   </div>
                 </Field>
 
-                {/* Observações */}
-                <Field
-                  id="observacoes"
-                  label="Observação (opcional)"
-                  icon={<MessageSquare className="size-4" />}
-                  hideIconOnInput
-                >
-                  <Textarea
-                    id="observacoes"
-                    rows={4}
-                    maxLength={500}
+                <Field id="observacoes" label="Observação (opcional)" icon={<MessageSquare className="size-4" />} hideIconOnInput>
+                  <Textarea id="observacoes" rows={4} maxLength={500}
                     placeholder="Conte algo que você gostaria de compartilhar com a equipe..."
                     value={form.observacoes}
-                    onChange={(e) => update("observacoes", e.target.value.slice(0, 500))}
-                  />
-                  <p
-                    className={`mt-1 text-right text-xs ${
-                      obsRestantes < 40 ? "text-destructive" : "text-muted-foreground"
-                    }`}
-                  >
+                    onChange={(e) => update("observacoes", e.target.value.slice(0, 500))} />
+                  <p className={`mt-1 text-right text-xs ${obsRestantes < 40 ? "text-destructive" : "text-muted-foreground"}`}>
                     {obsRestantes} caracteres restantes
                   </p>
                 </Field>
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="h-12 w-full text-base font-semibold tracking-wide shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5"
-                  style={{ background: "var(--gradient-hero)" }}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 size-5 animate-spin" />
-                      Enviando cadastro...
-                    </>
-                  ) : (
-                    "Quero fazer parte"
-                  )}
+                <Button type="submit" disabled={loading}
+                  className="h-12 w-full text-base font-semibold tracking-wide text-white shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5"
+                  style={{ background: "var(--gradient-hero)" }}>
+                  {loading ? (<><Loader2 className="mr-2 size-5 animate-spin" />Enviando cadastro...</>) : "Quero fazer parte"}
                 </Button>
 
                 <p className="text-center text-xs text-muted-foreground">
@@ -349,32 +318,18 @@ function CadastroPage() {
   );
 }
 
-function Field({
-  id,
-  label,
-  required,
-  icon,
-  children,
-  hideIconOnInput,
-}: {
-  id: string;
-  label: string;
-  required?: boolean;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  hideIconOnInput?: boolean;
+function Field({ id, label, required, icon, children, hideIconOnInput }: {
+  id: string; label: string; required?: boolean; icon?: React.ReactNode;
+  children: React.ReactNode; hideIconOnInput?: boolean;
 }) {
   return (
     <div>
       <Label htmlFor={id} className="mb-1.5 flex items-center gap-1 text-sm font-semibold text-foreground">
-        {label}
-        {required && <span className="text-destructive">*</span>}
+        {label}{required && <span className="text-destructive">*</span>}
       </Label>
       <div className="relative">
         {icon && !hideIconOnInput && (
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            {icon}
-          </span>
+          <span className="pointer-events-none absolute left-3 top-[1.15rem] -translate-y-1/2 text-muted-foreground">{icon}</span>
         )}
         {children}
       </div>
@@ -385,26 +340,14 @@ function Field({
 function SuccessState({ onReset }: { onReset: () => void }) {
   return (
     <div className="flex flex-col items-center py-6 text-center">
-      <div
-        className="mb-5 flex size-20 items-center justify-center rounded-full"
-        style={{ background: "var(--gradient-hero)" }}
-      >
+      <div className="mb-5 flex size-20 items-center justify-center rounded-full" style={{ background: "var(--gradient-hero)" }}>
         <CheckCircle2 className="size-10 text-white" />
       </div>
-      <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
-        Cadastro confirmado!
-      </h2>
+      <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Cadastro confirmado!</h2>
       <p className="mt-3 max-w-md text-muted-foreground">
-        Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com
-        novidades e convites para mobilizações na sua região.
+        Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com novidades e convites para mobilizações na sua região.
       </p>
-      <Button
-        onClick={onReset}
-        variant="outline"
-        className="mt-6"
-      >
-        Fazer novo cadastro
-      </Button>
+      <Button onClick={onReset} variant="outline" className="mt-6">Fazer novo cadastro</Button>
     </div>
   );
 }
