@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cadastros_clientes: {
+        Row: {
+          criado_em: string
+          email: string
+          id: string
+          instagram: string | null
+          municipio: string
+          nome: string
+          observacoes: string | null
+          telefone: string
+        }
+        Insert: {
+          criado_em?: string
+          email: string
+          id?: string
+          instagram?: string | null
+          municipio: string
+          nome: string
+          observacoes?: string | null
+          telefone: string
+        }
+        Update: {
+          criado_em?: string
+          email?: string
+          id?: string
+          instagram?: string | null
+          municipio?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
