@@ -16,34 +16,49 @@ export type Database = {
     Tables: {
       cadastros_clientes: {
         Row: {
+          bairro: string | null
+          cep: string | null
+          cidade_endereco: string | null
           criado_em: string
           email: string
+          endereco: string | null
           id: string
           instagram: string | null
           municipio: string
           nome: string
           observacoes: string | null
           telefone: string
+          uf: string | null
         }
         Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade_endereco?: string | null
           criado_em?: string
           email: string
+          endereco?: string | null
           id?: string
           instagram?: string | null
           municipio: string
           nome: string
           observacoes?: string | null
           telefone: string
+          uf?: string | null
         }
         Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade_endereco?: string | null
           criado_em?: string
           email?: string
+          endereco?: string | null
           id?: string
           instagram?: string | null
           municipio?: string
           nome?: string
           observacoes?: string | null
           telefone?: string
+          uf?: string | null
         }
         Relationships: []
       }
