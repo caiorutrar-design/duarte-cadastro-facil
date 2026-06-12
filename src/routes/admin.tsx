@@ -297,3 +297,73 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
     </main>
   );
 }
+
+function WhatsappConfigSection({ password }: { password: string }) {
+  const [number, setNumber] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const getCfg = useServerFn(getWhatsappConfig);
+  const saveCfg = useServerFn(saveWhatsappConfig);
+
+  useEffect(() => {
+    getCfg()
+      .then((c) => { setNumber(c.number); setMessage(c.message); })
+      .catch(() => toast.error("Não foi possível carregar a configuração do WhatsApp."))
+      .finally(() => setLoading(false));
+  }, [getCfg]);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    const digits = number.replace(/\D/g, "");
+    if (digits.length < 10) return toast.error("Informe o número com DDI + DDD (ex: 5598999999999).");
+    setSaving(true);
+    try {
+      await saveCfg({ data: { password, number: digits, message } });
+      setNumber(digits);
+      toast.success("Configuração do WhatsApp salva.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao salvar configuração.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <MessageSquare className="size-5 text-primary" />
+        <h2 className="text-base font-semibold">Configuração do WhatsApp (QR code pós-cadastro)</h2>
+      </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Defina o número que receberá os contatos e a mensagem pré-preenchida exibida ao final do cadastro.
+      </p>
+      <form onSubmit={handleSave} className="grid gap-4 sm:grid-cols-[1fr_2fr]">
+        <div>
+          <Label htmlFor="wa-number">Número (DDI + DDD + número)</Label>
+          <Input
+            id="wa-number" placeholder="5598999999999" inputMode="numeric"
+            value={number} onChange={(e) => setNumber(e.target.value.replace(/\D/g, ""))}
+            disabled={loading || saving} maxLength={15} className="mt-1"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Apenas dígitos. Ex.: 55 + 98 + número.</p>
+        </div>
+        <div>
+          <Label htmlFor="wa-message">Mensagem pré-preenchida</Label>
+          <Textarea
+            id="wa-message" rows={3} maxLength={500}
+            value={message} onChange={(e) => setMessage(e.target.value)}
+            disabled={loading || saving} className="mt-1"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Button type="submit" disabled={loading || saving}>
+            {saving ? <><Loader2 className="mr-2 size-4 animate-spin" /> Salvando...</> : "Salvar configuração"}
+          </Button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
