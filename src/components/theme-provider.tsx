@@ -34,14 +34,17 @@ export const useTheme = () => useContext(ThemeCtx);
 
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const { theme, toggle } = useTheme();
+  const label = theme === "dark" ? "Modo claro" : "Modo noturno";
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo noturno"}
-      className={`inline-flex size-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur transition hover:bg-white/25 ${className}`}
+      aria-label={label}
+      title={label}
+      className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-lg backdrop-blur transition hover:bg-white/30 ${className}`}
     >
-      {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
+      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
