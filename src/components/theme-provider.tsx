@@ -8,12 +8,11 @@ const ThemeCtx = createContext<{ theme: Theme; toggle: () => void }>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
     const stored = (typeof window !== "undefined" && localStorage.getItem("theme")) as Theme | null;
-    const prefersDark = typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initial: Theme = stored ?? (prefersDark ? "dark" : "light");
+    const initial: Theme = stored ?? "dark";
     setTheme(initial);
   }, []);
 
@@ -41,10 +40,11 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label={label}
       title={label}
-      className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-lg backdrop-blur transition hover:bg-white/30 ${className}`}
+      className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-lg backdrop-blur transition hover:bg-white/30 dark:border-[color:var(--duarte-blue)]/40 dark:bg-[color:var(--duarte-blue)]/10 dark:text-[color:var(--duarte-blue)] dark:hover:bg-[color:var(--duarte-blue)]/20 ${className}`}
     >
       {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
       <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
+

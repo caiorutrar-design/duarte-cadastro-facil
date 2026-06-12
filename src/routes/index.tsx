@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Instagram, Loader2, CheckCircle2, MapPin, Phone, Mail, User, MessageSquare, Search } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-provider";
+import { getWhatsappConfig } from "@/lib/config.functions";
 import duarteLogo from "@/assets/duarte-logo.png";
 
 export const Route = createFileRoute("/")({
@@ -49,6 +52,12 @@ type ViaCep = {
   localidade?: string; uf?: string; erro?: boolean;
 };
 
+// Heading/text colors over the hero gradient: white on light, soft white on dark too
+// (the hero gradient stays vibrant in both modes). We use a "duarte blue" tint via
+// the toggle/admin chips so they're readable when the underlying surface is light.
+const heroTextClass = "text-white drop-shadow-sm";
+const heroMutedClass = "text-white/80";
+
 function CadastroPage() {
   const [form, setForm] = useState({
     nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
@@ -58,6 +67,12 @@ function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [whats, setWhats] = useState<{ number: string; message: string } | null>(null);
+
+  const getCfg = useServerFn(getWhatsappConfig);
+  useEffect(() => {
+    getCfg().then(setWhats).catch(() => setWhats(null));
+  }, [getCfg]);
 
   const sugestoes = useMemo(() => {
     const q = form.municipioBusca.trim().toLowerCase();
@@ -76,7 +91,7 @@ function CadastroPage() {
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data: ViaCep = await res.json();
       if (data.erro) {
-        toast.error("CEP não encontrado.");
+        toast.info("CEP não encontrado. Preencha o endereço manualmente abaixo.");
         return;
       }
       setForm((p) => ({
@@ -89,7 +104,7 @@ function CadastroPage() {
       }));
       toast.success("Endereço encontrado!");
     } catch {
-      toast.error("Falha ao consultar CEP. Tente novamente.");
+      toast.error("Falha ao consultar CEP. Preencha o endereço manualmente.");
     } finally {
       setCepLoading(false);
     }
@@ -119,7 +134,6 @@ function CadastroPage() {
       });
 
       if (error) {
-        // 23505 = unique_violation
         if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
           toast.error("Este e-mail já está cadastrado.", {
             description: "Use outro endereço ou entre em contato com a equipe.",
@@ -163,7 +177,7 @@ function CadastroPage() {
       <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <Link
           to="/admin"
-          className="hidden rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:inline-flex"
+          className="hidden rounded-full border border-white/40 bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:inline-flex dark:border-[color:var(--duarte-blue)]/40 dark:bg-[color:var(--duarte-blue)]/10 dark:text-[color:var(--duarte-blue)] dark:hover:bg-[color:var(--duarte-blue)]/20"
         >
           Admin
         </Link>
@@ -173,17 +187,17 @@ function CadastroPage() {
       <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-12 sm:py-16">
         <header className="mb-8 flex flex-col items-center text-center">
           <img src={duarteLogo} alt="Duarte Jr." className="h-20 w-auto drop-shadow-2xl sm:h-24" />
-          <p className="mt-4 max-w-xl text-sm font-medium uppercase tracking-[0.2em] text-white/80 sm:text-base">
+          <p className={`mt-4 max-w-xl text-sm font-medium uppercase tracking-[0.2em] sm:text-base ${heroMutedClass} dark:text-[color:var(--duarte-blue)]`}>
             Movimento Duarte • Cadastro Oficial
           </p>
-          <h1 className="mt-2 max-w-2xl text-2xl font-bold text-white sm:text-4xl">
+          <h1 className={`mt-2 max-w-2xl text-2xl font-bold sm:text-4xl ${heroTextClass} dark:text-[color:var(--duarte-blue)]`}>
             Vamos juntos construir essa caminhada.
           </h1>
         </header>
 
         <section className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-[var(--shadow-elegant)] ring-1 ring-black/5 sm:p-10 dark:ring-white/5">
           {success ? (
-            <SuccessState onReset={() => setSuccess(false)} />
+            <SuccessState onReset={() => setSuccess(false)} whats={whats} />
           ) : (
             <>
               <div className="mb-6">
@@ -213,8 +227,11 @@ function CadastroPage() {
                   </Field>
                 </div>
 
-                {/* CEP + autocomplete */}
+                {/* CEP + endereço (sempre editável manualmente) */}
                 <div className="rounded-xl border border-border bg-muted/40 p-4">
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Informe o CEP para preencher automaticamente — ou digite o endereço manualmente nos campos abaixo.
+                  </p>
                   <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
                     <Field id="cep" label="CEP" icon={<Search className="size-4" />}>
                       <Input
@@ -310,7 +327,7 @@ function CadastroPage() {
           )}
         </section>
 
-        <footer className="mt-8 text-center text-xs text-white/70">
+        <footer className={`mt-8 text-center text-xs ${heroMutedClass} dark:text-[color:var(--duarte-blue)]/80`}>
           © {new Date().getFullYear()} Duarte Jr. • Todos os direitos reservados
         </footer>
       </main>
@@ -337,7 +354,12 @@ function Field({ id, label, required, icon, children, hideIconOnInput }: {
   );
 }
 
-function SuccessState({ onReset }: { onReset: () => void }) {
+function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number: string; message: string } | null }) {
+  const hasWhats = !!(whats && whats.number && whats.number.length >= 10);
+  const waUrl = hasWhats
+    ? `https://wa.me/${whats!.number}?text=${encodeURIComponent(whats!.message || "")}`
+    : "";
+
   return (
     <div className="flex flex-col items-center py-6 text-center">
       <div className="mb-5 flex size-20 items-center justify-center rounded-full" style={{ background: "var(--gradient-hero)" }}>
@@ -347,6 +369,31 @@ function SuccessState({ onReset }: { onReset: () => void }) {
       <p className="mt-3 max-w-md text-muted-foreground">
         Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com novidades e convites para mobilizações na sua região.
       </p>
+
+      {hasWhats && (
+        <div className="mt-6 w-full max-w-sm rounded-2xl border border-border bg-muted/40 p-5">
+          <p className="text-sm font-semibold text-foreground">Fale com nossa equipe no WhatsApp</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Aponte a câmera do seu celular para o QR code abaixo ou toque no botão.
+          </p>
+          <div className="mt-4 flex justify-center rounded-xl bg-white p-4 shadow-inner">
+            <QRCodeCanvas value={waUrl} size={180} includeMargin={false} level="M" />
+          </div>
+          <p className="mt-3 text-xs italic text-muted-foreground">
+            “{whats!.message}”
+          </p>
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-white shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5"
+            style={{ background: "var(--gradient-hero)" }}
+          >
+            Abrir no WhatsApp
+          </a>
+        </div>
+      )}
+
       <Button onClick={onReset} variant="outline" className="mt-6">Fazer novo cadastro</Button>
     </div>
   );

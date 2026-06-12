@@ -62,6 +62,24 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracoes_app: {
+        Row: {
+          atualizado_em: string
+          chave: string
+          valor: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          chave: string
+          valor?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          chave?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
