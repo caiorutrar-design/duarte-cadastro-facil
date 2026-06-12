@@ -40,10 +40,11 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={toggle}
       aria-label={label}
       title={label}
-      className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-lg backdrop-blur transition hover:bg-white/30 ${className}`}
+      className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-lg backdrop-blur transition hover:bg-white/30 dark:border-[color:var(--duarte-blue)]/40 dark:bg-[color:var(--duarte-blue)]/10 dark:text-[color:var(--duarte-blue)] dark:hover:bg-[color:var(--duarte-blue)]/20 ${className}`}
     >
       {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
       <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
+
