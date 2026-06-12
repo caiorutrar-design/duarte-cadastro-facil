@@ -13,6 +13,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { adminLogin, adminListCadastros, adminDeleteCadastro } from "@/lib/admin.functions";
+import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
+import { MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Administração — Cadastros Duarte" }, { name: "robots", content: "noindex,nofollow" }] }),
@@ -199,7 +202,10 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
         </form>
       </div>
 
+      <WhatsappConfigSection password={password} />
+
       <div className="mb-3">
+
         <Input
           placeholder="Filtrar resultados carregados..."
           value={filter} onChange={(e) => setFilter(e.target.value)}
