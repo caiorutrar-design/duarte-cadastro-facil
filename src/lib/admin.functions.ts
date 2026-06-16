@@ -1,27 +1,55 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-const passwordSchema = z.object({ password: z.string().min(1).max(200) });
+const TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
 
-function checkPassword(password: string) {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (!expected) throw new Error("Servidor sem senha configurada.");
-  if (password !== expected) throw new Error("Senha incorreta.");
+function getSecret() {
+  const s = process.env.ADMIN_PASSWORD;
+  if (!s) throw new Error("Servidor sem senha configurada.");
+  return s;
 }
+
+function sign(payload: string) {
+  return createHmac("sha256", getSecret()).update(payload).digest("hex");
+}
+
+function issueToken() {
+  const exp = Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS;
+  const payload = `v1.${exp}`;
+  return `${payload}.${sign(payload)}`;
+}
+
+export function verifyToken(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") throw new Error("Sessão inválida.");
+  const exp = Number(parts[1]);
+  if (!Number.isFinite(exp) || exp * 1000 < Date.now()) throw new Error("Sessão expirada.");
+  const expected = sign(`v1.${parts[1]}`);
+  const a = Buffer.from(parts[2], "hex");
+  const b = Buffer.from(expected, "hex");
+  if (a.length !== b.length || !timingSafeEqual(a, b)) throw new Error("Sessão inválida.");
+}
+
+const tokenSchema = z.object({ token: z.string().min(10).max(500) });
+const passwordSchema = z.object({ password: z.string().min(1).max(200) });
 
 export const adminLogin = createServerFn({ method: "POST" })
   .inputValidator((data) => passwordSchema.parse(data))
   .handler(async ({ data }) => {
-    checkPassword(data.password);
-    return { ok: true };
+    const expected = getSecret();
+    const a = Buffer.from(data.password);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) throw new Error("Senha incorreta.");
+    return { token: issueToken(), expiresIn: TOKEN_TTL_SECONDS };
   });
 
 export const adminListCadastros = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    passwordSchema.extend({ search: z.string().max(200).optional() }).parse(data),
+    tokenSchema.extend({ search: z.string().max(200).optional() }).parse(data),
   )
   .handler(async ({ data }) => {
-    checkPassword(data.password);
+    verifyToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let query = supabaseAdmin
@@ -44,9 +72,9 @@ export const adminListCadastros = createServerFn({ method: "POST" })
   });
 
 export const adminDeleteCadastro = createServerFn({ method: "POST" })
-  .inputValidator((data) => passwordSchema.extend({ id: z.string().uuid() }).parse(data))
+  .inputValidator((data) => tokenSchema.extend({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }) => {
-    checkPassword(data.password);
+    verifyToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("cadastros_clientes").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
