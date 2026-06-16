@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { verifyToken } from "./admin.functions";
+
 
 export const getWhatsappConfig = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -27,7 +27,9 @@ export const saveWhatsappConfig = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
     verifyToken(data.token);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rows = [
       { chave: "whatsapp_number", valor: data.number, atualizado_em: new Date().toISOString() },
