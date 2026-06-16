@@ -223,7 +223,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
         </form>
       </div>
 
-      <WhatsappConfigSection password={password} />
+      <WhatsappConfigSection token={token} />
 
       <div className="mb-3">
 
