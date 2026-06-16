@@ -27,7 +27,9 @@ export const saveWhatsappConfig = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
     verifyToken(data.token);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rows = [
       { chave: "whatsapp_number", valor: data.number, atualizado_em: new Date().toISOString() },
