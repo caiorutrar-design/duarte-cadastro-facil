@@ -319,7 +319,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
   );
 }
 
-function WhatsappConfigSection({ password }: { password: string }) {
+function WhatsappConfigSection({ token }: { token: string }) {
   const [number, setNumber] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -340,9 +340,10 @@ function WhatsappConfigSection({ password }: { password: string }) {
     if (digits.length < 10) return toast.error("Informe o número com DDI + DDD (ex: 5598999999999).");
     setSaving(true);
     try {
-      await saveCfg({ data: { password, number: digits, message } });
+      await saveCfg({ data: { token, number: digits, message } });
       setNumber(digits);
       toast.success("Configuração do WhatsApp salva.");
+
     } catch (err) {
       console.error(err);
       toast.error("Falha ao salvar configuração.");
