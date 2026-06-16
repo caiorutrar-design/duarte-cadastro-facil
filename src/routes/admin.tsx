@@ -138,7 +138,7 @@ function AdminPage() {
 }
 
 
-function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail: () => void }) {
+function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -153,11 +153,11 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
   async function load(searchTerm = "") {
     setLoading(true);
     try {
-      const { rows } = await listFn({ data: { password, search: searchTerm || undefined } });
+      const { rows } = await listFn({ data: { token, search: searchTerm || undefined } });
       setRows(rows as Row[]);
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao carregar cadastros. Faça login novamente.");
+      toast.error("Sessão expirada. Faça login novamente.");
       onAuthFail();
     } finally {
       setLoading(false);
@@ -180,7 +180,7 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await delFn({ data: { password, id: toDelete.id } });
+      await delFn({ data: { token, id: toDelete.id } });
       setRows((p) => p.filter((r) => r.id !== toDelete.id));
       toast.success("Cadastro excluído.");
       setToDelete(null);
@@ -192,6 +192,7 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
       setDeleting(false);
     }
   }
+
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
