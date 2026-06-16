@@ -1,13 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-
-const passwordSchema = z.object({ password: z.string().min(1).max(200) });
-
-function checkPassword(password: string) {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (!expected) throw new Error("Servidor sem senha configurada.");
-  if (password !== expected) throw new Error("Senha incorreta.");
-}
+import { verifyToken } from "./admin.functions";
 
 export const getWhatsappConfig = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -25,15 +18,16 @@ export const getWhatsappConfig = createServerFn({ method: "GET" }).handler(async
 
 export const saveWhatsappConfig = createServerFn({ method: "POST" })
   .inputValidator((data) =>
-    passwordSchema
-      .extend({
+    z
+      .object({
+        token: z.string().min(10).max(500),
         number: z.string().max(20).regex(/^\d*$/, "Apenas dígitos."),
         message: z.string().max(500),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    checkPassword(data.password);
+    verifyToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rows = [
       { chave: "whatsapp_number", valor: data.number, atualizado_em: new Date().toISOString() },
@@ -43,3 +37,4 @@ export const saveWhatsappConfig = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+

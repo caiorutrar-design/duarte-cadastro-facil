@@ -29,19 +29,36 @@ type Row = {
   bairro: string | null; cidade_endereco: string | null; uf: string | null;
 };
 
-const STORAGE_KEY = "duarte_admin_pwd";
+const STORAGE_KEY = "duarte_admin_token";
+
+type StoredSession = { token: string; exp: number };
+
+function readSession(): StoredSession | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredSession;
+    if (!parsed?.token || !parsed.exp || parsed.exp * 1000 < Date.now()) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    sessionStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
 
 function AdminPage() {
   const [password, setPassword] = useState<string>("");
-  const [authed, setAuthed] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setPassword(stored);
-      setAuthed(true);
-    }
+    // Migrate any legacy plaintext password storage
+    sessionStorage.removeItem("duarte_admin_pwd");
+    const s = readSession();
+    if (s) setToken(s.token);
   }, []);
 
   const loginFn = useServerFn(adminLogin);
@@ -50,9 +67,11 @@ function AdminPage() {
     e.preventDefault();
     setLoggingIn(true);
     try {
-      await loginFn({ data: { password } });
-      sessionStorage.setItem(STORAGE_KEY, password);
-      setAuthed(true);
+      const res = await loginFn({ data: { password } });
+      const exp = Math.floor(Date.now() / 1000) + (res.expiresIn ?? 3600);
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token: res.token, exp }));
+      setToken(res.token);
+      setPassword("");
       toast.success("Acesso liberado.");
     } catch (err) {
       console.error(err);
@@ -65,8 +84,8 @@ function AdminPage() {
 
   function handleLogout() {
     sessionStorage.removeItem(STORAGE_KEY);
+    setToken(null);
     setPassword("");
-    setAuthed(false);
   }
 
   return (
@@ -81,7 +100,7 @@ function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle className="bg-muted text-foreground hover:bg-muted/70" />
-            {authed && (
+            {token && (
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="mr-1 size-4" /> Sair
               </Button>
@@ -90,7 +109,7 @@ function AdminPage() {
         </div>
       </header>
 
-      {!authed ? (
+      {!token ? (
         <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20">
           <div className="mb-4 flex size-14 items-center justify-center rounded-full" style={{ background: "var(--gradient-hero)" }}>
             <Lock className="size-6 text-white" />
@@ -112,13 +131,14 @@ function AdminPage() {
           </form>
         </div>
       ) : (
-        <AdminDashboard password={password} onAuthFail={handleLogout} />
+        <AdminDashboard token={token} onAuthFail={handleLogout} />
       )}
     </div>
   );
 }
 
-function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail: () => void }) {
+
+function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -133,11 +153,11 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
   async function load(searchTerm = "") {
     setLoading(true);
     try {
-      const { rows } = await listFn({ data: { password, search: searchTerm || undefined } });
+      const { rows } = await listFn({ data: { token, search: searchTerm || undefined } });
       setRows(rows as Row[]);
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao carregar cadastros. Faça login novamente.");
+      toast.error("Sessão expirada. Faça login novamente.");
       onAuthFail();
     } finally {
       setLoading(false);
@@ -160,7 +180,7 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await delFn({ data: { password, id: toDelete.id } });
+      await delFn({ data: { token, id: toDelete.id } });
       setRows((p) => p.filter((r) => r.id !== toDelete.id));
       toast.success("Cadastro excluído.");
       setToDelete(null);
@@ -172,6 +192,7 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
       setDeleting(false);
     }
   }
+
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
@@ -202,7 +223,7 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
         </form>
       </div>
 
-      <WhatsappConfigSection password={password} />
+      <WhatsappConfigSection token={token} />
 
       <div className="mb-3">
 
@@ -298,7 +319,7 @@ function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail
   );
 }
 
-function WhatsappConfigSection({ password }: { password: string }) {
+function WhatsappConfigSection({ token }: { token: string }) {
   const [number, setNumber] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -319,9 +340,10 @@ function WhatsappConfigSection({ password }: { password: string }) {
     if (digits.length < 10) return toast.error("Informe o número com DDI + DDD (ex: 5598999999999).");
     setSaving(true);
     try {
-      await saveCfg({ data: { password, number: digits, message } });
+      await saveCfg({ data: { token, number: digits, message } });
       setNumber(digits);
       toast.success("Configuração do WhatsApp salva.");
+
     } catch (err) {
       console.error(err);
       toast.error("Falha ao salvar configuração.");
