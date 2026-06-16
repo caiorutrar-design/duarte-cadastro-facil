@@ -29,19 +29,36 @@ type Row = {
   bairro: string | null; cidade_endereco: string | null; uf: string | null;
 };
 
-const STORAGE_KEY = "duarte_admin_pwd";
+const STORAGE_KEY = "duarte_admin_token";
+
+type StoredSession = { token: string; exp: number };
+
+function readSession(): StoredSession | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredSession;
+    if (!parsed?.token || !parsed.exp || parsed.exp * 1000 < Date.now()) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    sessionStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
 
 function AdminPage() {
   const [password, setPassword] = useState<string>("");
-  const [authed, setAuthed] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const [loggingIn, setLoggingIn] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setPassword(stored);
-      setAuthed(true);
-    }
+    // Migrate any legacy plaintext password storage
+    sessionStorage.removeItem("duarte_admin_pwd");
+    const s = readSession();
+    if (s) setToken(s.token);
   }, []);
 
   const loginFn = useServerFn(adminLogin);
@@ -50,9 +67,11 @@ function AdminPage() {
     e.preventDefault();
     setLoggingIn(true);
     try {
-      await loginFn({ data: { password } });
-      sessionStorage.setItem(STORAGE_KEY, password);
-      setAuthed(true);
+      const res = await loginFn({ data: { password } });
+      const exp = Math.floor(Date.now() / 1000) + (res.expiresIn ?? 3600);
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token: res.token, exp }));
+      setToken(res.token);
+      setPassword("");
       toast.success("Acesso liberado.");
     } catch (err) {
       console.error(err);
@@ -65,8 +84,8 @@ function AdminPage() {
 
   function handleLogout() {
     sessionStorage.removeItem(STORAGE_KEY);
+    setToken(null);
     setPassword("");
-    setAuthed(false);
   }
 
   return (
@@ -81,7 +100,7 @@ function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle className="bg-muted text-foreground hover:bg-muted/70" />
-            {authed && (
+            {token && (
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="mr-1 size-4" /> Sair
               </Button>
@@ -90,7 +109,7 @@ function AdminPage() {
         </div>
       </header>
 
-      {!authed ? (
+      {!token ? (
         <div className="mx-auto flex max-w-md flex-col items-center px-4 py-20">
           <div className="mb-4 flex size-14 items-center justify-center rounded-full" style={{ background: "var(--gradient-hero)" }}>
             <Lock className="size-6 text-white" />
@@ -112,11 +131,12 @@ function AdminPage() {
           </form>
         </div>
       ) : (
-        <AdminDashboard password={password} onAuthFail={handleLogout} />
+        <AdminDashboard token={token} onAuthFail={handleLogout} />
       )}
     </div>
   );
 }
+
 
 function AdminDashboard({ password, onAuthFail }: { password: string; onAuthFail: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
