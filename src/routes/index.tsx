@@ -1,14 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Instagram, Loader2, CheckCircle2, MapPin, Phone, Mail, User, MessageSquare, Search } from "lucide-react";
+import { Instagram, Loader2, CheckCircle2, MapPin, Phone, Mail, User, Search, Camera, X } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-provider";
 import { getWhatsappConfig } from "@/lib/config.functions";
@@ -52,18 +51,19 @@ type ViaCep = {
   localidade?: string; uf?: string; erro?: boolean;
 };
 
-// Heading/text colors over the hero gradient: white on light, soft white on dark too
-// (the hero gradient stays vibrant in both modes). We use a "duarte blue" tint via
-// the toggle/admin chips so they're readable when the underlying surface is light.
+// Letras sobre o gradiente do hero ficam brancas em ambos os modos para melhor leitura.
 const heroTextClass = "text-white drop-shadow-sm";
 const heroMutedClass = "text-white/80";
 
 function CadastroPage() {
   const [form, setForm] = useState({
     nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
-    instagram: "", observacoes: "",
+    instagram: "",
     cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
   });
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -80,8 +80,34 @@ function CadastroPage() {
     return MUNICIPIOS_MA.filter((m) => m.toLowerCase().includes(q)).slice(0, 6);
   }, [form.municipioBusca]);
 
-  const obsRestantes = 500 - form.observacoes.length;
   const update = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A foto deve ter no máximo 5MB.");
+      return;
+    }
+    setFoto(file);
+    setFotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function clearFoto() {
+    setFoto(null);
+    setFotoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (fotoInputRef.current) fotoInputRef.current.value = "";
+  }
 
   async function buscarCep(cepValue: string) {
     const digits = cepValue.replace(/\D/g, "");
@@ -118,30 +144,39 @@ function CadastroPage() {
 
     setLoading(true);
     try {
+      let foto_url: string | null = null;
+      if (foto) {
+        const ext = foto.name.split(".").pop()?.toLowerCase() || "jpg";
+        const path = `${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("cadastros-fotos")
+          .upload(path, foto, { contentType: foto.type, upsert: false });
+        if (upErr) {
+          console.error(upErr);
+          toast.error("Falha ao enviar a foto. Tente novamente.");
+          return;
+        }
+        foto_url = path;
+      }
+
       const ig = form.instagram.trim().replace(/^@+/, "");
       const { error } = await supabase.from("cadastros_clientes").insert({
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
-        email: form.email.trim().toLowerCase(),
+        email: form.email.trim().toLowerCase() || null,
         municipio: form.municipio.trim(),
         instagram: ig ? `@${ig}` : null,
-        observacoes: form.observacoes.trim() || null,
         cep: form.cep.trim() || null,
         endereco: form.endereco.trim() || null,
         bairro: form.bairro.trim() || null,
         cidade_endereco: form.cidade_endereco.trim() || null,
         uf: form.uf.trim().toUpperCase() || null,
+        foto_url,
       });
 
       if (error) {
-        if (error.code === "23505" || /duplicate|unique/i.test(error.message)) {
-          toast.error("Este e-mail já está cadastrado.", {
-            description: "Use outro endereço ou entre em contato com a equipe.",
-          });
-        } else {
-          console.error(error);
-          toast.error("Não foi possível concluir seu cadastro. Tente novamente.");
-        }
+        console.error(error);
+        toast.error("Não foi possível concluir seu cadastro. Tente novamente.");
         return;
       }
 
@@ -149,9 +184,10 @@ function CadastroPage() {
       setSuccess(true);
       setForm({
         nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
-        instagram: "", observacoes: "",
+        instagram: "",
         cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
       });
+      clearFoto();
     } catch (err) {
       console.error(err);
       toast.error("Falha de conexão. Verifique sua internet e tente novamente.");
@@ -177,7 +213,7 @@ function CadastroPage() {
       <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <Link
           to="/admin"
-          className="hidden rounded-full border border-white/40 bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:inline-flex dark:border-[color:var(--duarte-blue)]/40 dark:bg-[color:var(--duarte-blue)]/10 dark:text-[color:var(--duarte-blue)] dark:hover:bg-[color:var(--duarte-blue)]/20"
+          className="hidden rounded-full border border-white/40 bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:inline-flex"
         >
           Admin
         </Link>
@@ -187,10 +223,10 @@ function CadastroPage() {
       <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-12 sm:py-16">
         <header className="mb-8 flex flex-col items-center text-center">
           <img src={duarteLogo} alt="Duarte Jr." className="h-20 w-auto drop-shadow-2xl sm:h-24" />
-          <p className={`mt-4 max-w-xl text-sm font-medium uppercase tracking-[0.2em] sm:text-base ${heroMutedClass} dark:text-[color:var(--duarte-blue)]`}>
+          <p className={`mt-4 max-w-xl text-sm font-medium uppercase tracking-[0.2em] sm:text-base ${heroMutedClass}`}>
             Movimento Duarte • Cadastro Oficial
           </p>
-          <h1 className={`mt-2 max-w-2xl text-2xl font-bold sm:text-4xl ${heroTextClass} dark:text-[color:var(--duarte-blue)]`}>
+          <h1 className={`mt-2 max-w-2xl text-2xl font-bold sm:text-4xl ${heroTextClass}`}>
             Vamos juntos construir essa caminhada.
           </h1>
         </header>
@@ -220,12 +256,44 @@ function CadastroPage() {
                       placeholder="(00) 00000-0000" value={form.telefone}
                       onChange={(e) => update("telefone", maskPhone(e.target.value))} className="pl-10" />
                   </Field>
-                  <Field id="email" label="E-mail" required icon={<Mail className="size-4" />}>
-                    <Input id="email" type="email" autoComplete="email" required maxLength={160}
+                  <Field id="email" label="E-mail (opcional)" icon={<Mail className="size-4" />}>
+                    <Input id="email" type="email" autoComplete="email" maxLength={160}
                       placeholder="voce@exemplo.com" value={form.email}
                       onChange={(e) => update("email", e.target.value)} className="pl-10" />
                   </Field>
                 </div>
+
+                {/* Foto do cadastrado */}
+                <Field id="foto" label="Foto (opcional)" icon={<Camera className="size-4" />} hideIconOnInput>
+                  <div className="flex items-center gap-4">
+                    <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-border bg-muted/40">
+                      {fotoPreview ? (
+                        <img src={fotoPreview} alt="Pré-visualização" className="size-full object-cover" />
+                      ) : (
+                        <Camera className="size-7 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={fotoInputRef}
+                        id="foto"
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        className="hidden"
+                        onChange={handleFotoChange}
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => fotoInputRef.current?.click()}>
+                        {foto ? "Trocar foto" : "Enviar foto"}
+                      </Button>
+                      {foto && (
+                        <Button type="button" variant="ghost" size="sm" onClick={clearFoto} className="text-destructive hover:text-destructive">
+                          <X className="mr-1 size-3" /> Remover
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Field>
 
                 {/* CEP + endereço (sempre editável manualmente) */}
                 <div className="rounded-xl border border-border bg-muted/40 p-4">
@@ -303,16 +371,6 @@ function CadastroPage() {
                   </div>
                 </Field>
 
-                <Field id="observacoes" label="Observação (opcional)" icon={<MessageSquare className="size-4" />} hideIconOnInput>
-                  <Textarea id="observacoes" rows={4} maxLength={500}
-                    placeholder="Conte algo que você gostaria de compartilhar com a equipe..."
-                    value={form.observacoes}
-                    onChange={(e) => update("observacoes", e.target.value.slice(0, 500))} />
-                  <p className={`mt-1 text-right text-xs ${obsRestantes < 40 ? "text-destructive" : "text-muted-foreground"}`}>
-                    {obsRestantes} caracteres restantes
-                  </p>
-                </Field>
-
                 <Button type="submit" disabled={loading}
                   className="h-12 w-full text-base font-semibold tracking-wide text-white shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-0.5"
                   style={{ background: "var(--gradient-hero)" }}>
@@ -327,7 +385,7 @@ function CadastroPage() {
           )}
         </section>
 
-        <footer className={`mt-8 text-center text-xs ${heroMutedClass} dark:text-[color:var(--duarte-blue)]/80`}>
+        <footer className={`mt-8 text-center text-xs ${heroMutedClass}`}>
           © {new Date().getFullYear()} Duarte Jr. • Todos os direitos reservados
         </footer>
       </main>
@@ -380,7 +438,7 @@ function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number
             <QRCodeCanvas value={waUrl} size={180} includeMargin={false} level="M" />
           </div>
           <p className="mt-3 text-xs italic text-muted-foreground">
-            “{whats!.message}”
+            "{whats!.message}"
           </p>
           <a
             href={waUrl}
