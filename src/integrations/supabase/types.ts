@@ -20,8 +20,9 @@ export type Database = {
           cep: string | null
           cidade_endereco: string | null
           criado_em: string
-          email: string
+          email: string | null
           endereco: string | null
+          foto_url: string | null
           id: string
           instagram: string | null
           municipio: string
@@ -35,8 +36,9 @@ export type Database = {
           cep?: string | null
           cidade_endereco?: string | null
           criado_em?: string
-          email: string
+          email?: string | null
           endereco?: string | null
+          foto_url?: string | null
           id?: string
           instagram?: string | null
           municipio: string
@@ -50,8 +52,9 @@ export type Database = {
           cep?: string | null
           cidade_endereco?: string | null
           criado_em?: string
-          email?: string
+          email?: string | null
           endereco?: string | null
+          foto_url?: string | null
           id?: string
           instagram?: string | null
           municipio?: string
