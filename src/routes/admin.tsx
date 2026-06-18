@@ -171,7 +171,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
     const q = filter.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.nome, r.email, r.telefone, r.municipio, r.cidade_endereco, r.bairro]
+      [r.nome, r.email, r.telefone, r.municipio, r.cidade_endereco, r.bairro, r.observacoes]
         .filter(Boolean).some((v) => v!.toLowerCase().includes(q))
     );
   }, [rows, filter]);
