@@ -25,7 +25,7 @@ export type Database = {
           foto_url: string | null
           id: string
           instagram: string | null
-          municipio: string
+          municipio: string | null
           nome: string
           observacoes: string | null
           telefone: string
@@ -41,7 +41,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           instagram?: string | null
-          municipio: string
+          municipio?: string | null
           nome: string
           observacoes?: string | null
           telefone: string
@@ -57,7 +57,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           instagram?: string | null
-          municipio?: string
+          municipio?: string | null
           nome?: string
           observacoes?: string | null
           telefone?: string
