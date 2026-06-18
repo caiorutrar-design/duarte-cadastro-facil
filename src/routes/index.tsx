@@ -125,7 +125,6 @@ function CadastroPage() {
     e.preventDefault();
     if (form.nome.trim().length < 3) return toast.error("Informe seu nome completo (mín. 3 caracteres).");
     if (form.telefone.replace(/\D/g, "").length < 10) return toast.error("Telefone inválido. Use (XX) XXXXX-XXXX.");
-    if (!form.municipio.trim()) return toast.error("Selecione ou informe seu município.");
 
     setLoading(true);
     try {
@@ -149,8 +148,8 @@ function CadastroPage() {
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
         email: form.email.trim().toLowerCase() || null,
-        municipio: form.municipio.trim(),
         instagram: ig ? `@${ig}` : null,
+        observacoes: form.observacoes.trim() || null,
         cep: form.cep.trim() || null,
         endereco: form.endereco.trim() || null,
         bairro: form.bairro.trim() || null,
@@ -168,8 +167,8 @@ function CadastroPage() {
       toast.success("Cadastro realizado com sucesso!");
       setSuccess(true);
       setForm({
-        nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
-        instagram: "",
+        nome: "", telefone: "", email: "",
+        instagram: "", observacoes: "",
         cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
       });
       clearFoto();
