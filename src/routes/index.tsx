@@ -323,28 +323,6 @@ function CadastroPage() {
                   </div>
                 </div>
 
-                <Field id="municipio" label="Município (base eleitoral)" required icon={<MapPin className="size-4" />}>
-                  <Input id="municipio" type="text" required list="municipios-list" autoComplete="off"
-                    placeholder="Digite seu município"
-                    value={form.municipio || form.municipioBusca}
-                    onChange={(e) => { update("municipio", e.target.value); update("municipioBusca", e.target.value); }}
-                    className="pl-10" />
-                  <datalist id="municipios-list">
-                    {MUNICIPIOS_MA.map((m) => <option key={m} value={m} />)}
-                  </datalist>
-                  {sugestoes.length > 0 && form.municipioBusca && (
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {sugestoes.map((s) => (
-                        <button key={s} type="button"
-                          onClick={() => { update("municipio", s); update("municipioBusca", ""); }}
-                          className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent hover:text-accent-foreground">
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </Field>
-
                 <Field id="instagram" label="Instagram (opcional)" icon={<Instagram className="size-4" />}>
                   <div className="relative">
                     <Input id="instagram" type="text" maxLength={60} placeholder="seu_usuario"
@@ -353,6 +331,18 @@ function CadastroPage() {
                       className="pl-16" />
                     <span className="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">@</span>
                   </div>
+                </Field>
+
+                <Field id="observacoes" label="Observação (opcional)" icon={<MessageSquare className="size-4" />}>
+                  <Textarea
+                    id="observacoes"
+                    placeholder="Conte algo que queira que nossa equipe saiba"
+                    value={form.observacoes}
+                    onChange={(e) => update("observacoes", e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    className="pl-10"
+                  />
                 </Field>
 
                 <Button type="submit" disabled={loading}
