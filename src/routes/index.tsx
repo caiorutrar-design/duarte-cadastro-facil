@@ -112,7 +112,6 @@ function CadastroPage() {
         bairro: data.bairro ?? "",
         cidade_endereco: data.localidade ?? "",
         uf: data.uf ?? "",
-        municipio: p.municipio || data.localidade || "",
       }));
       toast.success("Endereço encontrado!");
     } catch {
