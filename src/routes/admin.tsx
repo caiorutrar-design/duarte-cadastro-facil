@@ -267,7 +267,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
                     <div>{r.email}</div>
                     <div className="text-xs text-muted-foreground">{r.telefone}</div>
                   </td>
-                  <td className="px-4 py-3">{r.municipio}</td>
+                  <td className="px-4 py-3 text-xs max-w-[220px] whitespace-pre-wrap break-words">{r.observacoes ?? "—"}</td>
                   <td className="px-4 py-3 text-xs">
                     {r.cep && <div className="font-medium">{r.cep}</div>}
                     {(r.endereco || r.bairro) && (
