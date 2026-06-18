@@ -25,14 +25,6 @@ export const Route = createFileRoute("/")({
   component: CadastroPage,
 });
 
-const MUNICIPIOS_MA = [
-  "São Luís", "Imperatriz", "São José de Ribamar", "Timon", "Caxias", "Codó",
-  "Paço do Lumiar", "Açailândia", "Bacabal", "Balsas", "Barra do Corda",
-  "Santa Inês", "Pinheiro", "Chapadinha", "Itapecuru-Mirim", "Coroatá",
-  "Buriticupu", "Grajaú", "Pedreiras", "Estreito", "Tutóia", "Rosário",
-  "Viana", "Zé Doca", "São João dos Patos", "Presidente Dutra", "Barreirinhas",
-  "Cururupu", "Vargem Grande", "Santa Luzia", "Lago da Pedra", "Outro",
-];
 
 function maskPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
