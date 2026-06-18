@@ -213,7 +213,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Pesquisar no servidor (nome, e-mail, telefone, município)..."
+              placeholder="Pesquisar no servidor (nome, e-mail, telefone, cidade)..."
               value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10"
             />
           </div>
