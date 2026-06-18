@@ -49,8 +49,8 @@ const heroMutedClass = "text-white/80";
 
 function CadastroPage() {
   const [form, setForm] = useState({
-    nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
-    instagram: "",
+    nome: "", telefone: "", email: "",
+    instagram: "", observacoes: "",
     cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
   });
   const [foto, setFoto] = useState<File | null>(null);
@@ -65,12 +65,6 @@ function CadastroPage() {
   useEffect(() => {
     getCfg().then(setWhats).catch(() => setWhats(null));
   }, [getCfg]);
-
-  const sugestoes = useMemo(() => {
-    const q = form.municipioBusca.trim().toLowerCase();
-    if (!q) return [];
-    return MUNICIPIOS_MA.filter((m) => m.toLowerCase().includes(q)).slice(0, 6);
-  }, [form.municipioBusca]);
 
   const update = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
