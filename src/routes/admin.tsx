@@ -171,7 +171,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
     const q = filter.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
-      [r.nome, r.email, r.telefone, r.municipio, r.cidade_endereco, r.bairro]
+      [r.nome, r.email, r.telefone, r.municipio, r.cidade_endereco, r.bairro, r.observacoes]
         .filter(Boolean).some((v) => v!.toLowerCase().includes(q))
     );
   }, [rows, filter]);
@@ -213,7 +213,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Pesquisar no servidor (nome, e-mail, telefone, município)..."
+              placeholder="Pesquisar no servidor (nome, e-mail, telefone, cidade)..."
               value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10"
             />
           </div>
@@ -242,7 +242,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
                 <th className="px-4 py-3">Data</th>
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">Contato</th>
-                <th className="px-4 py-3">Município</th>
+                <th className="px-4 py-3">Observação</th>
                 <th className="px-4 py-3">Endereço</th>
                 <th className="px-4 py-3">Instagram</th>
                 <th className="px-4 py-3 text-right">Ações</th>
@@ -267,7 +267,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
                     <div>{r.email}</div>
                     <div className="text-xs text-muted-foreground">{r.telefone}</div>
                   </td>
-                  <td className="px-4 py-3">{r.municipio}</td>
+                  <td className="px-4 py-3 text-xs max-w-[220px] whitespace-pre-wrap break-words">{r.observacoes ?? "—"}</td>
                   <td className="px-4 py-3 text-xs">
                     {r.cep && <div className="font-medium">{r.cep}</div>}
                     {(r.endereco || r.bairro) && (

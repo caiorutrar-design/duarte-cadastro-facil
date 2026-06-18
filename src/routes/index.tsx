@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Instagram, Loader2, CheckCircle2, MapPin, Phone, Mail, User, Search, Camera, X } from "lucide-react";
+import { Instagram, Loader2, CheckCircle2, Phone, Mail, User, Search, Camera, X, MessageSquare } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme-provider";
 import { getWhatsappConfig } from "@/lib/config.functions";
@@ -25,14 +26,6 @@ export const Route = createFileRoute("/")({
   component: CadastroPage,
 });
 
-const MUNICIPIOS_MA = [
-  "São Luís", "Imperatriz", "São José de Ribamar", "Timon", "Caxias", "Codó",
-  "Paço do Lumiar", "Açailândia", "Bacabal", "Balsas", "Barra do Corda",
-  "Santa Inês", "Pinheiro", "Chapadinha", "Itapecuru-Mirim", "Coroatá",
-  "Buriticupu", "Grajaú", "Pedreiras", "Estreito", "Tutóia", "Rosário",
-  "Viana", "Zé Doca", "São João dos Patos", "Presidente Dutra", "Barreirinhas",
-  "Cururupu", "Vargem Grande", "Santa Luzia", "Lago da Pedra", "Outro",
-];
 
 function maskPhone(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -57,8 +50,8 @@ const heroMutedClass = "text-white/80";
 
 function CadastroPage() {
   const [form, setForm] = useState({
-    nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
-    instagram: "",
+    nome: "", telefone: "", email: "",
+    instagram: "", observacoes: "",
     cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
   });
   const [foto, setFoto] = useState<File | null>(null);
@@ -73,12 +66,6 @@ function CadastroPage() {
   useEffect(() => {
     getCfg().then(setWhats).catch(() => setWhats(null));
   }, [getCfg]);
-
-  const sugestoes = useMemo(() => {
-    const q = form.municipioBusca.trim().toLowerCase();
-    if (!q) return [];
-    return MUNICIPIOS_MA.filter((m) => m.toLowerCase().includes(q)).slice(0, 6);
-  }, [form.municipioBusca]);
 
   const update = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -126,7 +113,6 @@ function CadastroPage() {
         bairro: data.bairro ?? "",
         cidade_endereco: data.localidade ?? "",
         uf: data.uf ?? "",
-        municipio: p.municipio || data.localidade || "",
       }));
       toast.success("Endereço encontrado!");
     } catch {
@@ -140,7 +126,6 @@ function CadastroPage() {
     e.preventDefault();
     if (form.nome.trim().length < 3) return toast.error("Informe seu nome completo (mín. 3 caracteres).");
     if (form.telefone.replace(/\D/g, "").length < 10) return toast.error("Telefone inválido. Use (XX) XXXXX-XXXX.");
-    if (!form.municipio.trim()) return toast.error("Selecione ou informe seu município.");
 
     setLoading(true);
     try {
@@ -164,8 +149,8 @@ function CadastroPage() {
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
         email: form.email.trim().toLowerCase() || null,
-        municipio: form.municipio.trim(),
         instagram: ig ? `@${ig}` : null,
+        observacoes: form.observacoes.trim() || null,
         cep: form.cep.trim() || null,
         endereco: form.endereco.trim() || null,
         bairro: form.bairro.trim() || null,
@@ -183,8 +168,8 @@ function CadastroPage() {
       toast.success("Cadastro realizado com sucesso!");
       setSuccess(true);
       setForm({
-        nome: "", telefone: "", email: "", municipio: "", municipioBusca: "",
-        instagram: "",
+        nome: "", telefone: "", email: "",
+        instagram: "", observacoes: "",
         cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
       });
       clearFoto();
@@ -339,28 +324,6 @@ function CadastroPage() {
                   </div>
                 </div>
 
-                <Field id="municipio" label="Município (base eleitoral)" required icon={<MapPin className="size-4" />}>
-                  <Input id="municipio" type="text" required list="municipios-list" autoComplete="off"
-                    placeholder="Digite seu município"
-                    value={form.municipio || form.municipioBusca}
-                    onChange={(e) => { update("municipio", e.target.value); update("municipioBusca", e.target.value); }}
-                    className="pl-10" />
-                  <datalist id="municipios-list">
-                    {MUNICIPIOS_MA.map((m) => <option key={m} value={m} />)}
-                  </datalist>
-                  {sugestoes.length > 0 && form.municipioBusca && (
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {sugestoes.map((s) => (
-                        <button key={s} type="button"
-                          onClick={() => { update("municipio", s); update("municipioBusca", ""); }}
-                          className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent hover:text-accent-foreground">
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </Field>
-
                 <Field id="instagram" label="Instagram (opcional)" icon={<Instagram className="size-4" />}>
                   <div className="relative">
                     <Input id="instagram" type="text" maxLength={60} placeholder="seu_usuario"
@@ -369,6 +332,18 @@ function CadastroPage() {
                       className="pl-16" />
                     <span className="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">@</span>
                   </div>
+                </Field>
+
+                <Field id="observacoes" label="Observação (opcional)" icon={<MessageSquare className="size-4" />}>
+                  <Textarea
+                    id="observacoes"
+                    placeholder="Conte algo que queira que nossa equipe saiba"
+                    value={form.observacoes}
+                    onChange={(e) => update("observacoes", e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    className="pl-10"
+                  />
                 </Field>
 
                 <Button type="submit" disabled={loading}

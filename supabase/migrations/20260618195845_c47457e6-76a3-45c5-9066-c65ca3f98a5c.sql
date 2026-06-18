@@ -1,0 +1,1 @@
+ALTER TABLE public.cadastros_clientes ALTER COLUMN municipio DROP NOT NULL;
