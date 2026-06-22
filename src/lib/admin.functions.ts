@@ -31,7 +31,7 @@ export const adminListCadastros = createServerFn({ method: "POST" })
     if (s) {
       const like = `%${s.replace(/[%_]/g, "")}%`;
       query = query.or(
-        `nome.ilike.${like},email.ilike.${like},telefone.ilike.${like},municipio.ilike.${like},cidade_endereco.ilike.${like}`,
+        `nome.ilike.${like},email.ilike.${like},telefone.ilike.${like},instagram.ilike.${like},cidade_endereco.ilike.${like},bairro.ilike.${like},uf.ilike.${like}`,
       );
     }
 
@@ -49,4 +49,59 @@ export const adminDeleteCadastro = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("cadastros_clientes").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+const updateSchema = tokenSchema.extend({
+  id: z.string().uuid(),
+  patch: z.object({
+    nome: z.string().trim().min(3).max(120).optional(),
+    telefone: z.string().trim().min(8).max(40).optional(),
+    email: z.string().trim().max(160).nullable().optional(),
+    instagram: z.string().trim().max(80).nullable().optional(),
+    observacoes: z.string().trim().max(1000).nullable().optional(),
+    cep: z.string().trim().max(20).nullable().optional(),
+    endereco: z.string().trim().max(200).nullable().optional(),
+    bairro: z.string().trim().max(120).nullable().optional(),
+    cidade_endereco: z.string().trim().max(120).nullable().optional(),
+    uf: z.string().trim().max(2).nullable().optional(),
+  }),
+});
+
+export const adminUpdateCadastro = createServerFn({ method: "POST" })
+  .inputValidator((data) => updateSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
+    verifyToken(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const patch: Record<string, string | null> = {};
+    for (const [k, v] of Object.entries(data.patch)) {
+      if (v === undefined) continue;
+      if (typeof v === "string") {
+        const t = v.trim();
+        patch[k] = t === "" ? null : (k === "uf" ? t.toUpperCase() : t);
+      } else {
+        patch[k] = v;
+      }
+    }
+    const { data: row, error } = await supabaseAdmin
+      .from("cadastros_clientes")
+      .update(patch)
+      .eq("id", data.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return { row };
+  });
+
+export const adminGetFotoUrl = createServerFn({ method: "POST" })
+  .inputValidator((data) => tokenSchema.extend({ path: z.string().min(1).max(500) }).parse(data))
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
+    verifyToken(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("cadastros-fotos")
+      .createSignedUrl(data.path, 60 * 10);
+    if (error) throw new Error(error.message);
+    return { url: signed.signedUrl };
   });
