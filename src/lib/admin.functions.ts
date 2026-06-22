@@ -85,13 +85,15 @@ export const adminUpdateCadastro = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await supabaseAdmin
       .from("cadastros_clientes")
-      .update(patch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(patch as any)
       .eq("id", data.id)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
     return { row };
   });
+
 
 export const adminGetFotoUrl = createServerFn({ method: "POST" })
   .inputValidator((data) => tokenSchema.extend({ path: z.string().min(1).max(500) }).parse(data))
