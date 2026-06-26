@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, LogOut, Search, Trash2, Lock, ArrowLeft, Users,
   MessageSquare, Eye, Pencil, Save, X, ImageIcon,
+  LayoutDashboard, Database, FileSpreadsheet, FileText, Upload, Download,
+  Calendar, MapPin, TrendingUp, UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -11,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-provider";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -20,8 +23,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
+  PieChart, Pie, Cell, Legend,
+} from "recharts";
+import {
   adminLogin, adminListCadastros, adminDeleteCadastro,
-  adminUpdateCadastro, adminGetFotoUrl,
+  adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
 
@@ -32,7 +39,8 @@ export const Route = createFileRoute("/admin")({
 
 type Row = {
   id: string; criado_em: string; nome: string; telefone: string;
-  email: string | null; municipio: string | null; instagram: string | null;
+  email: string | null; cargo: string | null; sexo: "M" | "F" | null;
+  municipio: string | null; instagram: string | null;
   observacoes: string | null; cep: string | null; endereco: string | null;
   bairro: string | null; cidade_endereco: string | null; uf: string | null;
   foto_url: string | null;
@@ -99,7 +107,7 @@ function AdminPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
-      <header className="border-b border-border bg-card">
+      <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex items-center gap-3">
             <Link to="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -145,7 +153,6 @@ function AdminPage() {
   );
 }
 
-
 function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -154,9 +161,13 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
   const [filterTelefone, setFilterTelefone] = useState("");
   const [filterLocal, setFilterLocal] = useState("");
   const [filterSocial, setFilterSocial] = useState("");
+  const [filterSexo, setFilterSexo] = useState<"" | "M" | "F">("");
+  const [dataDe, setDataDe] = useState("");
+  const [dataAte, setDataAte] = useState("");
   const [toDelete, setToDelete] = useState<Row | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [selected, setSelected] = useState<Row | null>(null);
+  const [tab, setTab] = useState("dashboard");
 
   const router = useRouter();
   const listFn = useServerFn(adminListCadastros);
@@ -183,6 +194,8 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
     const t = filterTelefone.replace(/\D/g, "");
     const l = filterLocal.trim().toLowerCase();
     const s = filterSocial.trim().toLowerCase().replace(/^@+/, "");
+    const de = dataDe ? new Date(dataDe + "T00:00:00").getTime() : null;
+    const ate = dataAte ? new Date(dataAte + "T23:59:59").getTime() : null;
     return rows.filter((r) => {
       if (n && !(r.nome ?? "").toLowerCase().includes(n)) return false;
       if (t && !(r.telefone ?? "").replace(/\D/g, "").includes(t)) return false;
@@ -192,9 +205,15 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
         if (!hay.includes(l)) return false;
       }
       if (s && !(r.instagram ?? "").toLowerCase().replace(/^@+/, "").includes(s)) return false;
+      if (filterSexo && r.sexo !== filterSexo) return false;
+      if (de || ate) {
+        const ts = new Date(r.criado_em).getTime();
+        if (de && ts < de) return false;
+        if (ate && ts > ate) return false;
+      }
       return true;
     });
-  }, [rows, filterNome, filterTelefone, filterLocal, filterSocial]);
+  }, [rows, filterNome, filterTelefone, filterLocal, filterSocial, filterSexo, dataDe, dataAte]);
 
   async function confirmDelete() {
     if (!toDelete) return;
@@ -218,18 +237,22 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
     setSelected(updated);
   }
 
+  function clearFilters() {
+    setFilterNome(""); setFilterTelefone(""); setFilterLocal("");
+    setFilterSocial(""); setFilterSexo(""); setDataDe(""); setDataAte("");
+  }
+
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Users className="size-6 text-primary" /> Cadastros
+            <Users className="size-6 text-primary" /> CRM Duarte 700
           </h1>
           <p className="text-sm text-muted-foreground">
-            {loading ? "Carregando..." : `${filtered.length} de ${rows.length} registro(s)`}
+            {loading ? "Carregando..." : `${rows.length} cadastro(s) no total`}
           </p>
         </div>
-
         <form
           className="flex w-full max-w-xl items-center gap-2"
           onSubmit={(e) => { e.preventDefault(); load(search); }}
@@ -237,7 +260,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar no servidor (nome, e-mail, telefone, cidade, @instagram)..."
+              placeholder="Pesquisa rápida (nome, telefone, cidade, @instagram)..."
               value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10"
             />
           </div>
@@ -247,69 +270,100 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
         </form>
       </div>
 
-      <WhatsappConfigSection token={token} />
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 size-4" />Dashboard</TabsTrigger>
+          <TabsTrigger value="cadastros"><Database className="mr-2 size-4" />Cadastros</TabsTrigger>
+          <TabsTrigger value="io"><FileSpreadsheet className="mr-2 size-4" />Import/Export</TabsTrigger>
+          <TabsTrigger value="config"><MessageSquare className="mr-2 size-4" />WhatsApp</TabsTrigger>
+        </TabsList>
 
-      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Input placeholder="Filtrar por nome" value={filterNome} onChange={(e) => setFilterNome(e.target.value)} />
-        <Input placeholder="Filtrar por telefone" value={filterTelefone} onChange={(e) => setFilterTelefone(e.target.value)} />
-        <Input placeholder="Filtrar por localização (cidade, bairro, UF)" value={filterLocal} onChange={(e) => setFilterLocal(e.target.value)} />
-        <Input placeholder="Filtrar por @instagram" value={filterSocial} onChange={(e) => setFilterSocial(e.target.value)} />
-      </div>
+        <TabsContent value="dashboard" className="mt-6">
+          <DashboardTab rows={rows} loading={loading} />
+        </TabsContent>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Data</th>
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">Contato</th>
-                <th className="px-4 py-3">Localização</th>
-                <th className="px-4 py-3">Instagram</th>
-                <th className="px-4 py-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                  <Loader2 className="mx-auto size-6 animate-spin" />
-                </td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                  Nenhum cadastro encontrado.
-                </td></tr>
-              ) : filtered.map((r) => (
-                <tr key={r.id} className="border-t border-border transition hover:bg-muted/30 cursor-pointer" onClick={() => setSelected(r)}>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                    {new Date(r.criado_em).toLocaleString("pt-BR")}
-                  </td>
-                  <td className="px-4 py-3 font-medium">{r.nome}</td>
-                  <td className="px-4 py-3">
-                    <div className="text-xs">{r.telefone}</div>
-                    {r.email && <div className="text-xs text-muted-foreground">{r.email}</div>}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    {(r.cidade_endereco || r.uf) && (
-                      <div>{[r.cidade_endereco, r.uf].filter(Boolean).join("/")}</div>
-                    )}
-                    {r.bairro && <div className="text-muted-foreground">{r.bairro}</div>}
-                  </td>
-                  <td className="px-4 py-3 text-xs">{r.instagram ?? "—"}</td>
-                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => setSelected(r)} aria-label="Ver detalhes">
-                      <Eye className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setToDelete(r)}
-                      aria-label="Excluir cadastro" className="text-destructive hover:bg-destructive/10">
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <TabsContent value="cadastros" className="mt-6">
+          <FiltersBar
+            filterNome={filterNome} setFilterNome={setFilterNome}
+            filterTelefone={filterTelefone} setFilterTelefone={setFilterTelefone}
+            filterLocal={filterLocal} setFilterLocal={setFilterLocal}
+            filterSocial={filterSocial} setFilterSocial={setFilterSocial}
+            filterSexo={filterSexo} setFilterSexo={setFilterSexo}
+            dataDe={dataDe} setDataDe={setDataDe}
+            dataAte={dataAte} setDataAte={setDataAte}
+            onClear={clearFilters}
+          />
+          <p className="mb-2 text-xs text-muted-foreground">
+            {filtered.length} de {rows.length} registro(s) exibidos
+          </p>
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Data</th>
+                    <th className="px-4 py-3">Nome</th>
+                    <th className="px-4 py-3">Cargo</th>
+                    <th className="px-4 py-3">Sexo</th>
+                    <th className="px-4 py-3">Contato</th>
+                    <th className="px-4 py-3">Localização</th>
+                    <th className="px-4 py-3">Instagram</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                      <Loader2 className="mx-auto size-6 animate-spin" />
+                    </td></tr>
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                      Nenhum cadastro encontrado.
+                    </td></tr>
+                  ) : filtered.map((r) => (
+                    <tr key={r.id} className="cursor-pointer border-t border-border transition hover:bg-muted/30" onClick={() => setSelected(r)}>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                        {new Date(r.criado_em).toLocaleString("pt-BR")}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{r.nome}</td>
+                      <td className="px-4 py-3 text-xs">{r.cargo ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs">{r.sexo === "M" ? "Masc." : r.sexo === "F" ? "Fem." : "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="text-xs">{r.telefone}</div>
+                        {r.email && <div className="text-xs text-muted-foreground">{r.email}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {(r.cidade_endereco || r.uf) && (
+                          <div>{[r.cidade_endereco, r.uf].filter(Boolean).join("/")}</div>
+                        )}
+                        {r.bairro && <div className="text-muted-foreground">{r.bairro}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs">{r.instagram ?? "—"}</td>
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" onClick={() => setSelected(r)} aria-label="Ver detalhes">
+                          <Eye className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setToDelete(r)}
+                          aria-label="Excluir cadastro" className="text-destructive hover:bg-destructive/10">
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="io" className="mt-6">
+          <ImportExportTab token={token} rows={filtered} allRows={rows} onReload={() => load("")} />
+        </TabsContent>
+
+        <TabsContent value="config" className="mt-6">
+          <WhatsappConfigSection token={token} />
+        </TabsContent>
+      </Tabs>
 
       <CadastroDetailDialog
         token={token}
@@ -325,8 +379,8 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
             <AlertDialogTitle>Excluir cadastro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação não pode ser desfeita. O cadastro de{" "}
-              <span className="font-semibold text-foreground">{toDelete?.nome}</span>
-              {toDelete?.email ? <> ({toDelete.email})</> : null} será removido permanentemente.
+              <span className="font-semibold text-foreground">{toDelete?.nome}</span>{" "}
+              será removido permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -344,6 +398,412 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
     </main>
   );
 }
+
+/* -------------------- Filters Bar -------------------- */
+
+function FiltersBar(props: {
+  filterNome: string; setFilterNome: (v: string) => void;
+  filterTelefone: string; setFilterTelefone: (v: string) => void;
+  filterLocal: string; setFilterLocal: (v: string) => void;
+  filterSocial: string; setFilterSocial: (v: string) => void;
+  filterSexo: "" | "M" | "F"; setFilterSexo: (v: "" | "M" | "F") => void;
+  dataDe: string; setDataDe: (v: string) => void;
+  dataAte: string; setDataAte: (v: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <section className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Filtros</h3>
+        <Button variant="ghost" size="sm" onClick={props.onClear}>Limpar</Button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Input placeholder="Nome" value={props.filterNome} onChange={(e) => props.setFilterNome(e.target.value)} />
+        <Input placeholder="Telefone" value={props.filterTelefone} onChange={(e) => props.setFilterTelefone(e.target.value)} />
+        <Input placeholder="Localização (cidade, bairro, UF)" value={props.filterLocal} onChange={(e) => props.setFilterLocal(e.target.value)} />
+        <Input placeholder="@instagram" value={props.filterSocial} onChange={(e) => props.setFilterSocial(e.target.value)} />
+        <div>
+          <Label className="text-xs text-muted-foreground">Sexo</Label>
+          <select
+            value={props.filterSexo}
+            onChange={(e) => props.setFilterSexo(e.target.value as "" | "M" | "F")}
+            className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">Todos</option>
+            <option value="M">Masculino</option>
+            <option value="F">Feminino</option>
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Cadastrado de</Label>
+          <Input type="date" value={props.dataDe} onChange={(e) => props.setDataDe(e.target.value)} className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Cadastrado até</Label>
+          <Input type="date" value={props.dataAte} onChange={(e) => props.setDataAte(e.target.value)} className="mt-1" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------- Dashboard Tab -------------------- */
+
+function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
+  const stats = useMemo(() => {
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const start7 = startToday - 6 * 86400000;
+    const start30 = startToday - 29 * 86400000;
+
+    let today = 0, last7 = 0, last30 = 0;
+    const bairroMap = new Map<string, number>();
+    const cidadeMap = new Map<string, number>();
+    const sexoMap = { M: 0, F: 0, "—": 0 };
+    const dailyMap = new Map<string, number>(); // last 14 days
+
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(startToday - i * 86400000);
+      const key = d.toISOString().slice(0, 10);
+      dailyMap.set(key, 0);
+    }
+
+    rows.forEach((r) => {
+      const ts = new Date(r.criado_em).getTime();
+      if (ts >= startToday) today++;
+      if (ts >= start7) last7++;
+      if (ts >= start30) last30++;
+
+      const key = new Date(r.criado_em).toISOString().slice(0, 10);
+      if (dailyMap.has(key)) dailyMap.set(key, (dailyMap.get(key) ?? 0) + 1);
+
+      if (r.bairro) bairroMap.set(r.bairro, (bairroMap.get(r.bairro) ?? 0) + 1);
+      if (r.cidade_endereco) cidadeMap.set(r.cidade_endereco, (cidadeMap.get(r.cidade_endereco) ?? 0) + 1);
+      const sx = (r.sexo as "M" | "F" | null) ?? "—";
+      sexoMap[sx]++;
+    });
+
+    const dailySeries = Array.from(dailyMap.entries()).map(([date, total]) => ({
+      date: date.slice(5), // MM-DD
+      total,
+    }));
+    const bairros = Array.from(bairroMap.entries())
+      .sort((a, b) => b[1] - a[1]).slice(0, 10)
+      .map(([name, total]) => ({ name, total }));
+    const cidades = Array.from(cidadeMap.entries())
+      .sort((a, b) => b[1] - a[1]).slice(0, 6)
+      .map(([name, total]) => ({ name, total }));
+    const sexoData = [
+      { name: "Masculino", value: sexoMap.M },
+      { name: "Feminino", value: sexoMap.F },
+      { name: "Não informado", value: sexoMap["—"] },
+    ].filter((d) => d.value > 0);
+
+    return { today, last7, last30, dailySeries, bairros, cidades, sexoData, total: rows.length };
+  }, [rows]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <Loader2 className="mr-2 size-5 animate-spin" /> Carregando métricas...
+      </div>
+    );
+  }
+
+  const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard icon={<Users className="size-5" />} label="Total cadastrado" value={stats.total} />
+        <MetricCard icon={<UserPlus className="size-5" />} label="Hoje" value={stats.today} accent />
+        <MetricCard icon={<Calendar className="size-5" />} label="Últimos 7 dias" value={stats.last7} />
+        <MetricCard icon={<TrendingUp className="size-5" />} label="Últimos 30 dias" value={stats.last30} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold">Cadastros nos últimos 14 dias</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.dailySeries}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <MapPin className="size-4 text-primary" /> Top 10 bairros alcançados
+          </h3>
+          {stats.bairros.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados de bairro ainda.</p>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.bairros} layout="vertical" margin={{ left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold">Distribuição por sexo</h3>
+          {stats.sexoData.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={stats.sexoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                    outerRadius={80} label>
+                    {stats.sexoData.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold">Top cidades</h3>
+          {stats.cidades.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p>
+          ) : (
+            <ul className="space-y-2">
+              {stats.cidades.map((c) => (
+                <li key={c.name} className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2 text-sm">
+                  <span>{c.name}</span>
+                  <span className="font-semibold text-primary">{c.total}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: number; accent?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-5 shadow-sm ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className={`inline-flex size-9 items-center justify-center rounded-full ${accent ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          {icon}
+        </span>
+      </div>
+      <p className="mt-2 text-3xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+/* -------------------- Import / Export Tab -------------------- */
+
+const EXPORT_COLS: { key: keyof Row; label: string }[] = [
+  { key: "criado_em", label: "Data" },
+  { key: "nome", label: "Nome" },
+  { key: "cargo", label: "Cargo" },
+  { key: "sexo", label: "Sexo" },
+  { key: "telefone", label: "Telefone" },
+  { key: "email", label: "Email" },
+  { key: "instagram", label: "Instagram" },
+  { key: "cep", label: "CEP" },
+  { key: "endereco", label: "Endereço" },
+  { key: "bairro", label: "Bairro" },
+  { key: "cidade_endereco", label: "Cidade" },
+  { key: "uf", label: "UF" },
+  { key: "observacoes", label: "Observações" },
+];
+
+function ImportExportTab({ token, rows, allRows, onReload }: {
+  token: string; rows: Row[]; allRows: Row[]; onReload: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const bulkFn = useServerFn(adminBulkInsert);
+
+  function buildExportRows(source: Row[]) {
+    return source.map((r) => {
+      const obj: Record<string, string> = {};
+      EXPORT_COLS.forEach((c) => {
+        let v: unknown = r[c.key];
+        if (c.key === "criado_em" && v) v = new Date(v as string).toLocaleString("pt-BR");
+        obj[c.label] = (v ?? "") as string;
+      });
+      return obj;
+    });
+  }
+
+  async function exportExcel(source: Row[], filename: string) {
+    const XLSX = await import("xlsx");
+    const data = buildExportRows(source);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Cadastros");
+    XLSX.writeFile(wb, filename);
+    toast.success(`Exportado ${data.length} registro(s).`);
+  }
+
+  async function exportPdf(source: Row[], filename: string) {
+    const { default: jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Cadastros Duarte 700", 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} — ${source.length} registro(s)`, 40, 58);
+    const head = [EXPORT_COLS.map((c) => c.label)];
+    const body = source.map((r) =>
+      EXPORT_COLS.map((c) => {
+        let v: unknown = r[c.key];
+        if (c.key === "criado_em" && v) v = new Date(v as string).toLocaleString("pt-BR");
+        return String(v ?? "");
+      }),
+    );
+    autoTable(doc, { head, body, startY: 72, styles: { fontSize: 7, cellPadding: 3 }, headStyles: { fillColor: [30, 64, 175] } });
+    doc.save(filename);
+    toast.success(`PDF gerado com ${source.length} registro(s).`);
+  }
+
+  async function downloadTemplate() {
+    const XLSX = await import("xlsx");
+    const sample = [{
+      nome: "João da Silva", telefone: "98999990000", cargo: "Comerciante", sexo: "M",
+      email: "joao@email.com", instagram: "@joaosilva",
+      cep: "65000-000", endereco: "Rua A, 123", bairro: "Centro",
+      cidade_endereco: "São Luís", uf: "MA", observacoes: "",
+    }];
+    const ws = XLSX.utils.json_to_sheet(sample);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Modelo");
+    XLSX.writeFile(wb, "modelo-importacao.xlsx");
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      const norm = raw.map((r) => {
+        const get = (...ks: string[]) => {
+          for (const k of ks) {
+            for (const key of Object.keys(r)) {
+              if (key.toLowerCase().trim() === k.toLowerCase()) {
+                const v = r[key];
+                return v == null ? "" : String(v).trim();
+              }
+            }
+          }
+          return "";
+        };
+        const sexoRaw = get("sexo").toUpperCase().charAt(0);
+        const sexo = sexoRaw === "M" || sexoRaw === "F" ? sexoRaw : undefined;
+        return {
+          nome: get("nome", "name"),
+          telefone: get("telefone", "phone", "whatsapp"),
+          cargo: get("cargo", "profissao", "profissão") || undefined,
+          sexo,
+          email: get("email", "e-mail") || undefined,
+          instagram: get("instagram", "@") || undefined,
+          cep: get("cep") || undefined,
+          endereco: get("endereco", "endereço", "rua") || undefined,
+          bairro: get("bairro") || undefined,
+          cidade_endereco: get("cidade", "cidade_endereco", "municipio", "município") || undefined,
+          uf: get("uf", "estado") || undefined,
+          observacoes: get("observacoes", "observação", "obs") || undefined,
+        };
+      }).filter((r) => r.nome && r.telefone);
+
+      if (norm.length === 0) {
+        toast.error("Nenhuma linha válida encontrada. Verifique se há colunas nome e telefone.");
+        return;
+      }
+
+      const res = await bulkFn({ data: { token, rows: norm } });
+      toast.success(`${res.inserted} cadastro(s) importado(s).`);
+      onReload();
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao importar. Verifique o arquivo.");
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <h3 className="mb-2 flex items-center gap-2 text-base font-semibold">
+          <Download className="size-5 text-primary" /> Exportar dados
+        </h3>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Os filtros aplicados na aba <strong>Cadastros</strong> serão respeitados.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button onClick={() => exportExcel(rows, "cadastros-filtrados.xlsx")} className="w-full">
+            <FileSpreadsheet className="mr-2 size-4" /> Excel (filtrados: {rows.length})
+          </Button>
+          <Button onClick={() => exportPdf(rows, "cadastros-filtrados.pdf")} variant="outline" className="w-full">
+            <FileText className="mr-2 size-4" /> PDF (filtrados: {rows.length})
+          </Button>
+          <Button onClick={() => exportExcel(allRows, "cadastros-todos.xlsx")} variant="secondary" className="w-full">
+            <FileSpreadsheet className="mr-2 size-4" /> Excel (todos: {allRows.length})
+          </Button>
+          <Button onClick={() => exportPdf(allRows, "cadastros-todos.pdf")} variant="secondary" className="w-full">
+            <FileText className="mr-2 size-4" /> PDF (todos: {allRows.length})
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <h3 className="mb-2 flex items-center gap-2 text-base font-semibold">
+          <Upload className="size-5 text-primary" /> Importar dados
+        </h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Envie uma planilha <code>.xlsx</code> ou <code>.csv</code> contendo as colunas <strong>nome</strong> e <strong>telefone</strong> (obrigatórias).
+          Demais colunas suportadas: cargo, sexo, email, instagram, cep, endereco, bairro, cidade, uf, observacoes.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={downloadTemplate} variant="outline">
+            <Download className="mr-2 size-4" /> Baixar modelo
+          </Button>
+          <Button onClick={() => fileRef.current?.click()} disabled={importing}>
+            {importing ? <><Loader2 className="mr-2 size-4 animate-spin" /> Importando...</> : <><Upload className="mr-2 size-4" /> Escolher arquivo</>}
+          </Button>
+          <input
+            ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+            onChange={handleImport}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* -------------------- Detail Dialog -------------------- */
 
 function CadastroDetailDialog({
   token, row, onClose, onUpdated, onDelete,
@@ -377,7 +837,7 @@ function CadastroDetailDialog({
 
   if (!row || !form) return null;
 
-  const set = (k: keyof Row, v: string) => setForm((p) => (p ? { ...p, [k]: v } : p));
+  const set = (k: keyof Row, v: string) => setForm((p) => (p ? { ...p, [k]: v } as Row : p));
 
   async function handleSave() {
     if (!form) return;
@@ -389,7 +849,8 @@ function CadastroDetailDialog({
           patch: {
             nome: form.nome,
             telefone: form.telefone,
-            email: form.email ?? "",
+            cargo: form.cargo ?? "",
+            sexo: form.sexo ?? null,
             instagram: form.instagram ?? "",
             observacoes: form.observacoes ?? "",
             cep: form.cep ?? "",
@@ -443,7 +904,26 @@ function CadastroDetailDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Nome" editing={editing} value={form.nome} onChange={(v) => set("nome", v)} />
             <DetailField label="Telefone" editing={editing} value={form.telefone} onChange={(v) => set("telefone", v)} />
-            <DetailField label="E-mail" editing={editing} value={form.email ?? ""} onChange={(v) => set("email", v)} />
+            <DetailField label="Cargo / Profissão" editing={editing} value={form.cargo ?? ""} onChange={(v) => set("cargo", v)} />
+            <div>
+              <Label className="text-xs text-muted-foreground">Sexo</Label>
+              {editing ? (
+                <select
+                  value={form.sexo ?? ""}
+                  onChange={(e) => setForm((p) => (p ? { ...p, sexo: (e.target.value || null) as "M" | "F" | null } : p))}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">—</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Feminino</option>
+                </select>
+              ) : (
+                <p className="mt-1 rounded-md border bg-muted/30 p-2 text-sm">
+                  {form.sexo === "M" ? "Masculino" : form.sexo === "F" ? "Feminino" : <span className="text-muted-foreground">—</span>}
+                </p>
+              )}
+            </div>
+            <DetailField label="E-mail" editing={false} value={form.email ?? ""} onChange={() => {}} />
             <DetailField label="Instagram" editing={editing} value={form.instagram ?? ""} onChange={(v) => set("instagram", v)} />
             <DetailField label="CEP" editing={editing} value={form.cep ?? ""} onChange={(v) => set("cep", v)} />
             <DetailField label="Endereço" editing={editing} value={form.endereco ?? ""} onChange={(v) => set("endereco", v)} />
@@ -510,6 +990,8 @@ function DetailField({ label, value, editing, onChange }: {
   );
 }
 
+/* -------------------- WhatsApp Config -------------------- */
+
 function WhatsappConfigSection({ token }: { token: string }) {
   const [number, setNumber] = useState("");
   const [message, setMessage] = useState("");
@@ -543,7 +1025,7 @@ function WhatsappConfigSection({ token }: { token: string }) {
   }
 
   return (
-    <section className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <MessageSquare className="size-5 text-primary" />
         <h2 className="text-base font-semibold">Configuração do WhatsApp (QR code pós-cadastro)</h2>
