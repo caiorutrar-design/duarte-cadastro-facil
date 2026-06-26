@@ -50,10 +50,11 @@ const heroMutedClass = "text-white/80";
 
 function CadastroPage() {
   const [form, setForm] = useState({
-    nome: "", telefone: "", email: "",
+    nome: "", telefone: "", cargo: "", sexo: "" as "" | "M" | "F",
     instagram: "", observacoes: "",
     cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
   });
+
   const [foto, setFoto] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const fotoInputRef = useRef<HTMLInputElement>(null);
