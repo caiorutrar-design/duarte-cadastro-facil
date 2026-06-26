@@ -245,12 +245,36 @@ function CadastroPage() {
                       placeholder="(00) 00000-0000" value={form.telefone}
                       onChange={(e) => update("telefone", maskPhone(e.target.value))} className="pl-10" />
                   </Field>
-                  <Field id="email" label="E-mail (opcional)" icon={<Mail className="size-4" />}>
-                    <Input id="email" type="email" autoComplete="email" maxLength={160}
-                      placeholder="voce@exemplo.com" value={form.email}
-                      onChange={(e) => update("email", e.target.value)} className="pl-10" />
+                  <Field id="cargo" label="Cargo / Profissão (opcional)" icon={<Briefcase className="size-4" />}>
+                    <Input id="cargo" type="text" maxLength={120}
+                      placeholder="Ex: Professor, Comerciante" value={form.cargo}
+                      onChange={(e) => update("cargo", e.target.value)} className="pl-10" />
                   </Field>
                 </div>
+
+                <div>
+                  <Label className="mb-1.5 block text-sm font-semibold text-foreground">Sexo (opcional)</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { v: "M", l: "Masculino" },
+                      { v: "F", l: "Feminino" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, sexo: p.sexo === opt.v ? "" : (opt.v as "M" | "F") }))}
+                        className={`flex-1 rounded-md border px-4 py-2.5 text-sm font-medium transition ${
+                          form.sexo === opt.v
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
 
                 {/* Foto do cadastrado */}
                 <Field id="foto" label="Foto (opcional)" icon={<Camera className="size-4" />} hideIconOnInput>
