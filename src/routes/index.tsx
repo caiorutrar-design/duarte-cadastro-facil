@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Instagram, Loader2, CheckCircle2, Phone, Mail, User, Search, Camera, X, MessageSquare } from "lucide-react";
+import { Instagram, Loader2, CheckCircle2, Phone, Briefcase, User, Search, Camera, X, MessageSquare } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
