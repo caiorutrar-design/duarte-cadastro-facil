@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Instagram, Loader2, CheckCircle2, Phone, Mail, User, Search, Camera, X, MessageSquare } from "lucide-react";
+import { Instagram, Loader2, CheckCircle2, Phone, Briefcase, User, Search, Camera, X, MessageSquare } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -50,10 +50,11 @@ const heroMutedClass = "text-white/80";
 
 function CadastroPage() {
   const [form, setForm] = useState({
-    nome: "", telefone: "", email: "",
+    nome: "", telefone: "", cargo: "", sexo: "" as "" | "M" | "F",
     instagram: "", observacoes: "",
     cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
   });
+
   const [foto, setFoto] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const fotoInputRef = useRef<HTMLInputElement>(null);
@@ -148,7 +149,8 @@ function CadastroPage() {
       const { error } = await supabase.from("cadastros_clientes").insert({
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
-        email: form.email.trim().toLowerCase() || null,
+        cargo: form.cargo.trim() || null,
+        sexo: form.sexo || null,
         instagram: ig ? `@${ig}` : null,
         observacoes: form.observacoes.trim() || null,
         cep: form.cep.trim() || null,
@@ -159,6 +161,7 @@ function CadastroPage() {
         foto_url,
       });
 
+
       if (error) {
         console.error(error);
         toast.error("Não foi possível concluir seu cadastro. Tente novamente.");
@@ -168,10 +171,11 @@ function CadastroPage() {
       toast.success("Cadastro realizado com sucesso!");
       setSuccess(true);
       setForm({
-        nome: "", telefone: "", email: "",
+        nome: "", telefone: "", cargo: "", sexo: "",
         instagram: "", observacoes: "",
         cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
       });
+
       clearFoto();
     } catch (err) {
       console.error(err);
@@ -241,12 +245,36 @@ function CadastroPage() {
                       placeholder="(00) 00000-0000" value={form.telefone}
                       onChange={(e) => update("telefone", maskPhone(e.target.value))} className="pl-10" />
                   </Field>
-                  <Field id="email" label="E-mail (opcional)" icon={<Mail className="size-4" />}>
-                    <Input id="email" type="email" autoComplete="email" maxLength={160}
-                      placeholder="voce@exemplo.com" value={form.email}
-                      onChange={(e) => update("email", e.target.value)} className="pl-10" />
+                  <Field id="cargo" label="Cargo / Profissão (opcional)" icon={<Briefcase className="size-4" />}>
+                    <Input id="cargo" type="text" maxLength={120}
+                      placeholder="Ex: Professor, Comerciante" value={form.cargo}
+                      onChange={(e) => update("cargo", e.target.value)} className="pl-10" />
                   </Field>
                 </div>
+
+                <div>
+                  <Label className="mb-1.5 block text-sm font-semibold text-foreground">Sexo (opcional)</Label>
+                  <div className="flex gap-2">
+                    {[
+                      { v: "M", l: "Masculino" },
+                      { v: "F", l: "Feminino" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, sexo: p.sexo === opt.v ? "" : (opt.v as "M" | "F") }))}
+                        className={`flex-1 rounded-md border px-4 py-2.5 text-sm font-medium transition ${
+                          form.sexo === opt.v
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
 
                 {/* Foto do cadastrado */}
                 <Field id="foto" label="Foto (opcional)" icon={<Camera className="size-4" />} hideIconOnInput>

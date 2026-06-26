@@ -17,6 +17,7 @@ export type Database = {
       cadastros_clientes: {
         Row: {
           bairro: string | null
+          cargo: string | null
           cep: string | null
           cidade_endereco: string | null
           criado_em: string
@@ -28,11 +29,13 @@ export type Database = {
           municipio: string | null
           nome: string
           observacoes: string | null
+          sexo: string | null
           telefone: string
           uf: string | null
         }
         Insert: {
           bairro?: string | null
+          cargo?: string | null
           cep?: string | null
           cidade_endereco?: string | null
           criado_em?: string
@@ -44,11 +47,13 @@ export type Database = {
           municipio?: string | null
           nome: string
           observacoes?: string | null
+          sexo?: string | null
           telefone: string
           uf?: string | null
         }
         Update: {
           bairro?: string | null
+          cargo?: string | null
           cep?: string | null
           cidade_endereco?: string | null
           criado_em?: string
@@ -60,6 +65,7 @@ export type Database = {
           municipio?: string | null
           nome?: string
           observacoes?: string | null
+          sexo?: string | null
           telefone?: string
           uf?: string | null
         }
