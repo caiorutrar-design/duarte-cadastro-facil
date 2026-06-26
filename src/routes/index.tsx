@@ -171,10 +171,11 @@ function CadastroPage() {
       toast.success("Cadastro realizado com sucesso!");
       setSuccess(true);
       setForm({
-        nome: "", telefone: "", email: "",
+        nome: "", telefone: "", cargo: "", sexo: "",
         instagram: "", observacoes: "",
         cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
       });
+
       clearFoto();
     } catch (err) {
       console.error(err);
