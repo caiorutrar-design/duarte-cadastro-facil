@@ -203,7 +203,7 @@ function CadastroPage() {
       <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <Link
           to="/admin"
-          className="hidden rounded-full border border-white/40 bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:inline-flex"
+          className="inline-flex rounded-full border border-white/40 bg-white/15 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur transition hover:bg-white/25 sm:px-4"
         >
           Admin
         </Link>
