@@ -149,7 +149,8 @@ function CadastroPage() {
       const { error } = await supabase.from("cadastros_clientes").insert({
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
-        email: form.email.trim().toLowerCase() || null,
+        cargo: form.cargo.trim() || null,
+        sexo: form.sexo || null,
         instagram: ig ? `@${ig}` : null,
         observacoes: form.observacoes.trim() || null,
         cep: form.cep.trim() || null,
@@ -159,6 +160,7 @@ function CadastroPage() {
         uf: form.uf.trim().toUpperCase() || null,
         foto_url,
       });
+
 
       if (error) {
         console.error(error);
