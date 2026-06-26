@@ -132,8 +132,9 @@ function CadastroPage() {
     try {
       let foto_url: string | null = null;
       if (foto) {
-        const ext = foto.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${crypto.randomUUID()}.${ext}`;
+        const rawExt = foto.name.split(".").pop()?.toLowerCase() || "jpg";
+        const ext = ["jpg", "jpeg", "png", "webp", "gif"].includes(rawExt) ? rawExt : "jpg";
+        const path = `uploads/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("cadastros-fotos")
           .upload(path, foto, { contentType: foto.type, upsert: false });
