@@ -56,7 +56,8 @@ const updateSchema = tokenSchema.extend({
   patch: z.object({
     nome: z.string().trim().min(3).max(120).optional(),
     telefone: z.string().trim().min(8).max(40).optional(),
-    email: z.string().trim().max(160).nullable().optional(),
+    cargo: z.string().trim().max(120).nullable().optional(),
+    sexo: z.enum(["M", "F"]).nullable().optional(),
     instagram: z.string().trim().max(80).nullable().optional(),
     observacoes: z.string().trim().max(1000).nullable().optional(),
     cep: z.string().trim().max(20).nullable().optional(),
@@ -66,6 +67,7 @@ const updateSchema = tokenSchema.extend({
     uf: z.string().trim().max(2).nullable().optional(),
   }),
 });
+
 
 export const adminUpdateCadastro = createServerFn({ method: "POST" })
   .inputValidator((data) => updateSchema.parse(data))
