@@ -86,6 +86,7 @@ function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [whats, setWhats] = useState<{ number: string; message: string } | null>(null);
 
   const getCfg = useServerFn(getWhatsappConfig);
@@ -190,12 +191,25 @@ function CadastroPage() {
 
 
       if (error) {
+        if ((error as { code?: string }).code === "23505") {
+          toast.success("Você já está cadastrado. Obrigado!");
+          setAlreadyRegistered(true);
+          setSuccess(true);
+          setForm({
+            nome: "", telefone: "", cargo: "", sexo: "",
+            instagram: "", observacoes: "",
+            cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
+          });
+          clearFoto();
+          return;
+        }
         console.error(error);
         toast.error("Não foi possível concluir seu cadastro. Tente novamente.");
         return;
       }
 
       toast.success("Cadastro realizado com sucesso!");
+      setAlreadyRegistered(false);
       setSuccess(true);
       setForm({
         nome: "", telefone: "", cargo: "", sexo: "",
@@ -249,7 +263,7 @@ function CadastroPage() {
 
         <section className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-[var(--shadow-elegant)] ring-1 ring-black/5 sm:p-10 dark:ring-white/5">
           {success ? (
-            <SuccessState onReset={() => setSuccess(false)} whats={whats} />
+            <SuccessState onReset={() => { setSuccess(false); setAlreadyRegistered(false); }} whats={whats} alreadyRegistered={alreadyRegistered} />
           ) : (
             <>
               <div className="mb-6">
@@ -442,7 +456,7 @@ function Field({ id, label, required, icon, children, hideIconOnInput }: {
   );
 }
 
-function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number: string; message: string } | null }) {
+function SuccessState({ onReset, whats, alreadyRegistered }: { onReset: () => void; whats: { number: string; message: string } | null; alreadyRegistered?: boolean }) {
   const numberDigits = (whats?.number ?? "").replace(/\D/g, "");
   const hasWhats = numberDigits.length >= 10;
   const safeMessage = (whats?.message ?? "").replace(/\r\n/g, "\n").trim();
@@ -455,9 +469,13 @@ function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number
       <div className="mb-5 flex size-20 items-center justify-center rounded-full" style={{ background: "var(--gradient-hero)" }}>
         <CheckCircle2 className="size-10 text-white" />
       </div>
-      <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Cadastro confirmado!</h2>
+      <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
+        {alreadyRegistered ? "Você já faz parte!" : "Cadastro confirmado!"}
+      </h2>
       <p className="mt-3 max-w-md text-muted-foreground">
-        Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com novidades e convites para mobilizações na sua região.
+        {alreadyRegistered
+          ? "Obrigado! Identificamos que você já está cadastrado em nossa base. Não precisa cadastrar novamente — sua participação no movimento já está garantida."
+          : "Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com novidades e convites para mobilizações na sua região."}
       </p>
 
       {hasWhats && (
