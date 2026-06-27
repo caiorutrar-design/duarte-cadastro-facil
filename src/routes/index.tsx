@@ -86,6 +86,7 @@ function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [whats, setWhats] = useState<{ number: string; message: string } | null>(null);
 
   const getCfg = useServerFn(getWhatsappConfig);
