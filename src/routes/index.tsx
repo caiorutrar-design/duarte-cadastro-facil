@@ -418,9 +418,11 @@ function Field({ id, label, required, icon, children, hideIconOnInput }: {
 }
 
 function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number: string; message: string } | null }) {
-  const hasWhats = !!(whats && whats.number && whats.number.length >= 10);
+  const numberDigits = (whats?.number ?? "").replace(/\D/g, "");
+  const hasWhats = numberDigits.length >= 10;
+  const safeMessage = (whats?.message ?? "").replace(/\r\n/g, "\n").trim();
   const waUrl = hasWhats
-    ? `https://wa.me/${whats!.number}?text=${encodeURIComponent(whats!.message || "")}`
+    ? `https://wa.me/${numberDigits}?text=${encodeURIComponent(safeMessage)}`
     : "";
 
   return (
