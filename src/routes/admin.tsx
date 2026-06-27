@@ -555,7 +555,10 @@ function FiltersBar(props: {
 
 /* -------------------- Dashboard Tab -------------------- */
 
-function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
+function DashboardTab({ rows, loading, onDrill }: {
+  rows: Row[]; loading: boolean;
+  onDrill: (kind: DrillKind, value?: string) => void;
+}) {
   const stats = useMemo(() => {
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -566,7 +569,7 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
     const bairroMap = new Map<string, number>();
     const cidadeMap = new Map<string, number>();
     const sexoMap = { M: 0, F: 0, "—": 0 };
-    const dailyMap = new Map<string, number>(); // last 14 days
+    const dailyMap = new Map<string, number>();
 
     for (let i = 13; i >= 0; i--) {
       const d = new Date(startToday - i * 86400000);
@@ -589,10 +592,7 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
       sexoMap[sx]++;
     });
 
-    const dailySeries = Array.from(dailyMap.entries()).map(([date, total]) => ({
-      date: date.slice(5), // MM-DD
-      total,
-    }));
+    const dailySeries = Array.from(dailyMap.entries()).map(([date, total]) => ({ date: date.slice(5), total }));
     const bairros = Array.from(bairroMap.entries())
       .sort((a, b) => b[1] - a[1]).slice(0, 10)
       .map(([name, total]) => ({ name, total }));
@@ -605,7 +605,10 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
       { name: "Não informado", value: sexoMap["—"] },
     ].filter((d) => d.value > 0);
 
-    return { today, last7, last30, dailySeries, bairros, cidades, sexoData, total: rows.length };
+    return {
+      today, last7, last30, dailySeries, bairros, cidades, sexoData,
+      total: rows.length, sexoM: sexoMap.M, sexoF: sexoMap.F,
+    };
   }, [rows]);
 
   if (loading) {
@@ -618,13 +621,91 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
 
   const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
 
+  type CardSpec = {
+    label: string; value: number; icon: React.ReactNode;
+    gradient: string; ring: string; onClick?: () => void;
+  };
+  const baseCards: CardSpec[] = [
+    {
+      label: "Total cadastrado", value: stats.total,
+      icon: <Users className="size-6" />,
+      gradient: "from-blue-700 via-blue-600 to-blue-500",
+      ring: "ring-blue-400/40",
+    },
+    {
+      label: "Cadastrados hoje", value: stats.today,
+      icon: <UserPlus className="size-6" />,
+      gradient: "from-amber-500 via-yellow-500 to-orange-500",
+      ring: "ring-yellow-400/40",
+      onClick: () => onDrill("today"),
+    },
+    {
+      label: "Últimos 7 dias", value: stats.last7,
+      icon: <Calendar className="size-6" />,
+      gradient: "from-sky-600 via-cyan-500 to-teal-500",
+      ring: "ring-cyan-400/40",
+      onClick: () => onDrill("last7"),
+    },
+    {
+      label: "Últimos 30 dias", value: stats.last30,
+      icon: <TrendingUp className="size-6" />,
+      gradient: "from-red-600 via-rose-500 to-pink-500",
+      ring: "ring-rose-400/40",
+      onClick: () => onDrill("last30"),
+    },
+    {
+      label: "Masculino", value: stats.sexoM,
+      icon: <Mars className="size-6" />,
+      gradient: "from-blue-800 via-indigo-600 to-blue-500",
+      ring: "ring-indigo-400/40",
+      onClick: () => onDrill("sexo", "M"),
+    },
+    {
+      label: "Feminino", value: stats.sexoF,
+      icon: <Venus className="size-6" />,
+      gradient: "from-pink-600 via-rose-500 to-red-500",
+      ring: "ring-pink-400/40",
+      onClick: () => onDrill("sexo", "F"),
+    },
+  ];
+
+  const bairroCards: CardSpec[] = stats.bairros.slice(0, 6).map((b) => ({
+    label: `Bairro: ${b.name}`, value: b.total,
+    icon: <MapPin className="size-6" />,
+    gradient: "from-yellow-500 via-amber-500 to-red-500",
+    ring: "ring-amber-400/40",
+    onClick: () => onDrill("bairro", b.name),
+  }));
+
+  const cidadeCards: CardSpec[] = stats.cidades.slice(0, 4).map((c) => ({
+    label: `Cidade: ${c.name}`, value: c.total,
+    icon: <Building2 className="size-6" />,
+    gradient: "from-cyan-600 via-sky-500 to-blue-500",
+    ring: "ring-sky-400/40",
+    onClick: () => onDrill("cidade", c.name),
+  }));
+
+  const allCards = [...baseCards, ...bairroCards, ...cidadeCards];
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard icon={<Users className="size-5" />} label="Total cadastrado" value={stats.total} />
-        <MetricCard icon={<UserPlus className="size-5" />} label="Hoje" value={stats.today} accent />
-        <MetricCard icon={<Calendar className="size-5" />} label="Últimos 7 dias" value={stats.last7} />
-        <MetricCard icon={<TrendingUp className="size-5" />} label="Últimos 30 dias" value={stats.last30} />
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Métricas — clique em um card para filtrar
+          </h2>
+        </div>
+        <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+          <CarouselContent className="-ml-3">
+            {allCards.map((c, i) => (
+              <CarouselItem key={i} className="basis-[78%] pl-3 sm:basis-[45%] md:basis-1/3 lg:basis-1/4 xl:basis-[22%]">
+                <MetricCard {...c} />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="hidden sm:flex" />
+          <CarouselNext className="hidden sm:flex" />
+        </Carousel>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -652,12 +733,18 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
           ) : (
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.bairros} layout="vertical" margin={{ left: 8 }}>
+                <BarChart
+                  data={stats.bairros} layout="vertical" margin={{ left: 8 }}
+                  onClick={(e) => {
+                    const name = (e?.activePayload?.[0]?.payload as { name?: string } | undefined)?.name;
+                    if (name) onDrill("bairro", name);
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} className="cursor-pointer" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -672,8 +759,7 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={stats.sexoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    outerRadius={80} label>
+                  <Pie data={stats.sexoData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                     {stats.sexoData.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
@@ -693,9 +779,15 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
           ) : (
             <ul className="space-y-2">
               {stats.cidades.map((c) => (
-                <li key={c.name} className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2 text-sm">
-                  <span>{c.name}</span>
-                  <span className="font-semibold text-primary">{c.total}</span>
+                <li key={c.name}>
+                  <button
+                    type="button"
+                    onClick={() => onDrill("cidade", c.name)}
+                    className="flex w-full items-center justify-between rounded-md bg-muted/30 px-3 py-2 text-sm transition hover:bg-muted/60"
+                  >
+                    <span>{c.name}</span>
+                    <span className="font-semibold text-primary">{c.total}</span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -706,17 +798,32 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
   );
 }
 
-function MetricCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: number; accent?: boolean }) {
+function MetricCard({ icon, label, value, gradient, ring, onClick }: {
+  icon: React.ReactNode; label: string; value: number;
+  gradient: string; ring: string; onClick?: () => void;
+}) {
+  const interactive = !!onClick;
+  const Comp: "button" | "div" = interactive ? "button" : "div";
   return (
-    <div className={`rounded-xl border p-5 shadow-sm ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <span className={`inline-flex size-9 items-center justify-center rounded-full ${accent ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+    <Comp
+      type={interactive ? "button" : undefined}
+      onClick={onClick}
+      className={`group relative h-full w-full overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 text-left text-white shadow-lg ring-1 ${ring} transition-transform ${interactive ? "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]" : ""}`}
+    >
+      <div aria-hidden className="absolute -right-6 -top-6 size-24 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-wider text-white/85">{label}</span>
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur">
           {icon}
         </span>
       </div>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
-    </div>
+      <p className="relative mt-3 text-4xl font-extrabold tabular-nums drop-shadow-sm">{value}</p>
+      {interactive && (
+        <p className="relative mt-1 text-[11px] font-medium uppercase tracking-wider text-white/80">
+          Clique para filtrar →
+        </p>
+      )}
+    </Comp>
   );
 }
 
