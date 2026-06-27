@@ -5,7 +5,8 @@ import {
   Loader2, LogOut, Search, Trash2, Lock, ArrowLeft, Users,
   MessageSquare, Eye, Pencil, Save, X, ImageIcon,
   LayoutDashboard, Database, FileSpreadsheet, FileText, Upload, Download,
-  Calendar, MapPin, TrendingUp, UserPlus, Filter, Building2, Mars, Venus,
+  Calendar, MapPin, TrendingUp, UserPlus, Filter, Mars, Venus,
+  BarChart3, PieChart as PieIcon, LineChart as LineIcon, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -14,10 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ThemeToggle } from "@/components/theme-provider";
-import {
-  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
-} from "@/components/ui/carousel";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -27,13 +26,26 @@ import {
 } from "@/components/ui/dialog";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, LineChart, Line,
 } from "recharts";
 import {
   adminLogin, adminListCadastros, adminDeleteCadastro,
   adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
+
+/* Brand palette — Azul Marinho, Amarelo, Vermelho, Azul Claro */
+const BRAND = {
+  navy: "#0a2540",
+  yellow: "#facc15",
+  red: "#dc2626",
+  sky: "#38bdf8",
+};
+const BAIRRO_PALETTE = [
+  BRAND.navy, BRAND.yellow, BRAND.red, BRAND.sky,
+  "#1e3a8a", "#f59e0b", "#ef4444", "#0ea5e9",
+  "#1d4ed8", "#fbbf24", "#b91c1c", "#7dd3fc",
+];
 
 function formatPhoneDisplay(v: string | null | undefined) {
   if (!v) return "";
