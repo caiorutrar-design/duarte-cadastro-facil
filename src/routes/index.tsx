@@ -147,9 +147,10 @@ function CadastroPage() {
       }
 
       const ig = form.instagram.trim().replace(/^@+/, "");
+      const telefoneDigits = form.telefone.replace(/\D/g, "");
       const { error } = await supabase.from("cadastros_clientes").insert({
         nome: form.nome.trim(),
-        telefone: form.telefone.trim(),
+        telefone: telefoneDigits,
         cargo: form.cargo.trim() || null,
         sexo: form.sexo || null,
         instagram: ig ? `@${ig}` : null,
@@ -417,9 +418,11 @@ function Field({ id, label, required, icon, children, hideIconOnInput }: {
 }
 
 function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number: string; message: string } | null }) {
-  const hasWhats = !!(whats && whats.number && whats.number.length >= 10);
+  const numberDigits = (whats?.number ?? "").replace(/\D/g, "");
+  const hasWhats = numberDigits.length >= 10;
+  const safeMessage = (whats?.message ?? "").replace(/\r\n/g, "\n").trim();
   const waUrl = hasWhats
-    ? `https://wa.me/${whats!.number}?text=${encodeURIComponent(whats!.message || "")}`
+    ? `https://wa.me/${numberDigits}?text=${encodeURIComponent(safeMessage)}`
     : "";
 
   return (
@@ -441,9 +444,11 @@ function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number
           <div className="mt-4 flex justify-center rounded-xl bg-white p-4 shadow-inner">
             <QRCodeCanvas value={waUrl} size={180} includeMargin={false} level="M" />
           </div>
-          <p className="mt-3 text-xs italic text-muted-foreground">
-            "{whats!.message}"
-          </p>
+          {safeMessage && (
+            <p className="mt-3 text-xs italic text-muted-foreground">
+              "{safeMessage}"
+            </p>
+          )}
           <a
             href={waUrl}
             target="_blank"

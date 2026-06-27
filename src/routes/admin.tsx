@@ -5,7 +5,7 @@ import {
   Loader2, LogOut, Search, Trash2, Lock, ArrowLeft, Users,
   MessageSquare, Eye, Pencil, Save, X, ImageIcon,
   LayoutDashboard, Database, FileSpreadsheet, FileText, Upload, Download,
-  Calendar, MapPin, TrendingUp, UserPlus,
+  Calendar, MapPin, TrendingUp, UserPlus, Filter, Building2, Mars, Venus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-provider";
+import {
+  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
+} from "@/components/ui/carousel";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -31,6 +34,17 @@ import {
   adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
+
+function formatPhoneDisplay(v: string | null | undefined) {
+  if (!v) return "";
+  const d = v.replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return v;
+}
+
+type DrillKind = "today" | "last7" | "last30" | "bairro" | "cidade" | "sexo";
+type DrillFilter = { kind: DrillKind; label: string; value?: string } | null;
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Administração — Cadastros Duarte" }, { name: "robots", content: "noindex,nofollow" }] }),
@@ -168,6 +182,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
   const [deleting, setDeleting] = useState(false);
   const [selected, setSelected] = useState<Row | null>(null);
   const [tab, setTab] = useState("dashboard");
+  const [drillFilter, setDrillFilter] = useState<DrillFilter>(null);
 
   const router = useRouter();
   const listFn = useServerFn(adminListCadastros);
@@ -240,6 +255,83 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
   function clearFilters() {
     setFilterNome(""); setFilterTelefone(""); setFilterLocal("");
     setFilterSocial(""); setFilterSexo(""); setDataDe(""); setDataAte("");
+    setDrillFilter(null);
+  }
+
+  function ymd(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function handleDrill(kind: DrillKind, value?: string) {
+    // clear existing local filters first
+    setFilterNome(""); setFilterTelefone(""); setFilterLocal("");
+    setFilterSocial(""); setFilterSexo(""); setDataDe(""); setDataAte("");
+
+    const today = new Date();
+    if (kind === "today") {
+      const t = ymd(today);
+      setDataDe(t); setDataAte(t);
+      setDrillFilter({ kind, label: "Cadastrados hoje" });
+    } else if (kind === "last7") {
+      const start = new Date(today); start.setDate(start.getDate() - 6);
+      setDataDe(ymd(start)); setDataAte(ymd(today));
+      setDrillFilter({ kind, label: "Últimos 7 dias" });
+    } else if (kind === "last30") {
+      const start = new Date(today); start.setDate(start.getDate() - 29);
+      setDataDe(ymd(start)); setDataAte(ymd(today));
+      setDrillFilter({ kind, label: "Últimos 30 dias" });
+    } else if (kind === "bairro" && value) {
+      setFilterLocal(value);
+      setDrillFilter({ kind, label: `Bairro: ${value}`, value });
+    } else if (kind === "cidade" && value) {
+      setFilterLocal(value);
+      setDrillFilter({ kind, label: `Cidade: ${value}`, value });
+    } else if (kind === "sexo" && (value === "M" || value === "F")) {
+      setFilterSexo(value);
+      setDrillFilter({ kind, label: value === "M" ? "Sexo: Masculino" : "Sexo: Feminino", value });
+    }
+    setTab("cadastros");
+  }
+
+  function exportCsv() {
+    const cols: { key: keyof Row; label: string }[] = [
+      { key: "criado_em", label: "Data" },
+      { key: "nome", label: "Nome" },
+      { key: "cargo", label: "Cargo" },
+      { key: "sexo", label: "Sexo" },
+      { key: "telefone", label: "Telefone" },
+      { key: "email", label: "Email" },
+      { key: "instagram", label: "Instagram" },
+      { key: "cep", label: "CEP" },
+      { key: "endereco", label: "Endereço" },
+      { key: "bairro", label: "Bairro" },
+      { key: "cidade_endereco", label: "Cidade" },
+      { key: "uf", label: "UF" },
+      { key: "observacoes", label: "Observações" },
+    ];
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",;\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [cols.map((c) => escape(c.label)).join(";")];
+    filtered.forEach((r) => {
+      lines.push(cols.map((c) => {
+        let v: unknown = r[c.key];
+        if (c.key === "criado_em" && v) v = new Date(v as string).toLocaleString("pt-BR");
+        if (c.key === "telefone") v = formatPhoneDisplay(v as string);
+        return escape(v ?? "");
+      }).join(";"));
+    });
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cadastros-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`CSV exportado (${filtered.length} registro(s)).`);
   }
 
   return (
@@ -254,10 +346,10 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           </p>
         </div>
         <form
-          className="flex w-full max-w-xl items-center gap-2"
+          className="flex w-full max-w-xl flex-wrap items-center gap-2"
           onSubmit={(e) => { e.preventDefault(); load(search); }}
         >
-          <div className="relative flex-1">
+          <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Pesquisa rápida (nome, telefone, cidade, @instagram)..."
@@ -266,6 +358,9 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           </div>
           <Button type="submit" disabled={loading}>
             {loading ? <Loader2 className="size-4 animate-spin" /> : "Buscar"}
+          </Button>
+          <Button type="button" variant="outline" onClick={exportCsv} title="Exportar dados filtrados para CSV">
+            <Download className="mr-1 size-4" /> CSV
           </Button>
         </form>
       </div>
@@ -279,10 +374,21 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-6">
-          <DashboardTab rows={rows} loading={loading} />
+          <DashboardTab rows={rows} loading={loading} onDrill={handleDrill} />
         </TabsContent>
 
         <TabsContent value="cadastros" className="mt-6">
+          {drillFilter && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Filter className="size-4 text-primary" />
+                Filtro ativo: <span className="font-semibold">{drillFilter.label}</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={clearFilters}>
+                <X className="mr-1 size-3" /> Limpar filtro
+              </Button>
+            </div>
+          )}
           <FiltersBar
             filterNome={filterNome} setFilterNome={setFilterNome}
             filterTelefone={filterTelefone} setFilterTelefone={setFilterTelefone}
@@ -329,7 +435,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
                       <td className="px-4 py-3 text-xs">{r.cargo ?? "—"}</td>
                       <td className="px-4 py-3 text-xs">{r.sexo === "M" ? "Masc." : r.sexo === "F" ? "Fem." : "—"}</td>
                       <td className="px-4 py-3">
-                        <div className="text-xs">{r.telefone}</div>
+                        <div className="text-xs">{formatPhoneDisplay(r.telefone)}</div>
                         {r.email && <div className="text-xs text-muted-foreground">{r.email}</div>}
                       </td>
                       <td className="px-4 py-3 text-xs">
@@ -449,7 +555,10 @@ function FiltersBar(props: {
 
 /* -------------------- Dashboard Tab -------------------- */
 
-function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
+function DashboardTab({ rows, loading, onDrill }: {
+  rows: Row[]; loading: boolean;
+  onDrill: (kind: DrillKind, value?: string) => void;
+}) {
   const stats = useMemo(() => {
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -460,7 +569,7 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
     const bairroMap = new Map<string, number>();
     const cidadeMap = new Map<string, number>();
     const sexoMap = { M: 0, F: 0, "—": 0 };
-    const dailyMap = new Map<string, number>(); // last 14 days
+    const dailyMap = new Map<string, number>();
 
     for (let i = 13; i >= 0; i--) {
       const d = new Date(startToday - i * 86400000);
@@ -483,10 +592,7 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
       sexoMap[sx]++;
     });
 
-    const dailySeries = Array.from(dailyMap.entries()).map(([date, total]) => ({
-      date: date.slice(5), // MM-DD
-      total,
-    }));
+    const dailySeries = Array.from(dailyMap.entries()).map(([date, total]) => ({ date: date.slice(5), total }));
     const bairros = Array.from(bairroMap.entries())
       .sort((a, b) => b[1] - a[1]).slice(0, 10)
       .map(([name, total]) => ({ name, total }));
@@ -499,7 +605,10 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
       { name: "Não informado", value: sexoMap["—"] },
     ].filter((d) => d.value > 0);
 
-    return { today, last7, last30, dailySeries, bairros, cidades, sexoData, total: rows.length };
+    return {
+      today, last7, last30, dailySeries, bairros, cidades, sexoData,
+      total: rows.length, sexoM: sexoMap.M, sexoF: sexoMap.F,
+    };
   }, [rows]);
 
   if (loading) {
@@ -512,13 +621,91 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
 
   const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
 
+  type CardSpec = {
+    label: string; value: number; icon: React.ReactNode;
+    gradient: string; ring: string; onClick?: () => void;
+  };
+  const baseCards: CardSpec[] = [
+    {
+      label: "Total cadastrado", value: stats.total,
+      icon: <Users className="size-6" />,
+      gradient: "from-blue-700 via-blue-600 to-blue-500",
+      ring: "ring-blue-400/40",
+    },
+    {
+      label: "Cadastrados hoje", value: stats.today,
+      icon: <UserPlus className="size-6" />,
+      gradient: "from-amber-500 via-yellow-500 to-orange-500",
+      ring: "ring-yellow-400/40",
+      onClick: () => onDrill("today"),
+    },
+    {
+      label: "Últimos 7 dias", value: stats.last7,
+      icon: <Calendar className="size-6" />,
+      gradient: "from-sky-600 via-cyan-500 to-teal-500",
+      ring: "ring-cyan-400/40",
+      onClick: () => onDrill("last7"),
+    },
+    {
+      label: "Últimos 30 dias", value: stats.last30,
+      icon: <TrendingUp className="size-6" />,
+      gradient: "from-red-600 via-rose-500 to-pink-500",
+      ring: "ring-rose-400/40",
+      onClick: () => onDrill("last30"),
+    },
+    {
+      label: "Masculino", value: stats.sexoM,
+      icon: <Mars className="size-6" />,
+      gradient: "from-blue-800 via-indigo-600 to-blue-500",
+      ring: "ring-indigo-400/40",
+      onClick: () => onDrill("sexo", "M"),
+    },
+    {
+      label: "Feminino", value: stats.sexoF,
+      icon: <Venus className="size-6" />,
+      gradient: "from-pink-600 via-rose-500 to-red-500",
+      ring: "ring-pink-400/40",
+      onClick: () => onDrill("sexo", "F"),
+    },
+  ];
+
+  const bairroCards: CardSpec[] = stats.bairros.slice(0, 6).map((b) => ({
+    label: `Bairro: ${b.name}`, value: b.total,
+    icon: <MapPin className="size-6" />,
+    gradient: "from-yellow-500 via-amber-500 to-red-500",
+    ring: "ring-amber-400/40",
+    onClick: () => onDrill("bairro", b.name),
+  }));
+
+  const cidadeCards: CardSpec[] = stats.cidades.slice(0, 4).map((c) => ({
+    label: `Cidade: ${c.name}`, value: c.total,
+    icon: <Building2 className="size-6" />,
+    gradient: "from-cyan-600 via-sky-500 to-blue-500",
+    ring: "ring-sky-400/40",
+    onClick: () => onDrill("cidade", c.name),
+  }));
+
+  const allCards = [...baseCards, ...bairroCards, ...cidadeCards];
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard icon={<Users className="size-5" />} label="Total cadastrado" value={stats.total} />
-        <MetricCard icon={<UserPlus className="size-5" />} label="Hoje" value={stats.today} accent />
-        <MetricCard icon={<Calendar className="size-5" />} label="Últimos 7 dias" value={stats.last7} />
-        <MetricCard icon={<TrendingUp className="size-5" />} label="Últimos 30 dias" value={stats.last30} />
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            Métricas — clique em um card para filtrar
+          </h2>
+        </div>
+        <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+          <CarouselContent className="-ml-3">
+            {allCards.map((c, i) => (
+              <CarouselItem key={i} className="basis-[78%] pl-3 sm:basis-[45%] md:basis-1/3 lg:basis-1/4 xl:basis-[22%]">
+                <MetricCard {...c} />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="hidden sm:flex" />
+          <CarouselNext className="hidden sm:flex" />
+        </Carousel>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -546,12 +733,18 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
           ) : (
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.bairros} layout="vertical" margin={{ left: 8 }}>
+                <BarChart
+                  data={stats.bairros} layout="vertical" margin={{ left: 8 }}
+                  onClick={(e) => {
+                    const name = (e?.activePayload?.[0]?.payload as { name?: string } | undefined)?.name;
+                    if (name) onDrill("bairro", name);
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} className="cursor-pointer" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -566,8 +759,7 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={stats.sexoData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                    outerRadius={80} label>
+                  <Pie data={stats.sexoData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                     {stats.sexoData.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
@@ -587,9 +779,15 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
           ) : (
             <ul className="space-y-2">
               {stats.cidades.map((c) => (
-                <li key={c.name} className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2 text-sm">
-                  <span>{c.name}</span>
-                  <span className="font-semibold text-primary">{c.total}</span>
+                <li key={c.name}>
+                  <button
+                    type="button"
+                    onClick={() => onDrill("cidade", c.name)}
+                    className="flex w-full items-center justify-between rounded-md bg-muted/30 px-3 py-2 text-sm transition hover:bg-muted/60"
+                  >
+                    <span>{c.name}</span>
+                    <span className="font-semibold text-primary">{c.total}</span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -600,17 +798,32 @@ function DashboardTab({ rows, loading }: { rows: Row[]; loading: boolean }) {
   );
 }
 
-function MetricCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: number; accent?: boolean }) {
+function MetricCard({ icon, label, value, gradient, ring, onClick }: {
+  icon: React.ReactNode; label: string; value: number;
+  gradient: string; ring: string; onClick?: () => void;
+}) {
+  const interactive = !!onClick;
+  const Comp: "button" | "div" = interactive ? "button" : "div";
   return (
-    <div className={`rounded-xl border p-5 shadow-sm ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <span className={`inline-flex size-9 items-center justify-center rounded-full ${accent ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+    <Comp
+      type={interactive ? "button" : undefined}
+      onClick={onClick}
+      className={`group relative h-full w-full overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 text-left text-white shadow-lg ring-1 ${ring} transition-transform ${interactive ? "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]" : ""}`}
+    >
+      <div aria-hidden className="absolute -right-6 -top-6 size-24 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="text-xs font-semibold uppercase tracking-wider text-white/85">{label}</span>
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur">
           {icon}
         </span>
       </div>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
-    </div>
+      <p className="relative mt-3 text-4xl font-extrabold tabular-nums drop-shadow-sm">{value}</p>
+      {interactive && (
+        <p className="relative mt-1 text-[11px] font-medium uppercase tracking-wider text-white/80">
+          Clique para filtrar →
+        </p>
+      )}
+    </Comp>
   );
 }
 
