@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+
+Sitemap: https://duarte-cadastro-facil.lovable.app/sitemap.xml

@@ -21,6 +21,28 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Faça parte do movimento de Duarte Jr. Cadastre-se e receba novidades da pré-candidatura ao Senado." },
       { property: "og:title", content: "Cadastro Oficial — Duarte Jr." },
       { property: "og:description", content: "Faça parte do movimento. Cadastre-se e fique por dentro." },
+      { property: "og:url", content: "https://duarte-cadastro-facil.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://duarte-cadastro-facil.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "Duarte Jr.",
+          url: "https://duarte-cadastro-facil.lovable.app/",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Duarte Jr. — Movimento 700",
+          url: "https://duarte-cadastro-facil.lovable.app/",
+        }),
+      },
     ],
   }),
   component: CadastroPage,
@@ -283,7 +305,7 @@ function CadastroPage() {
                   <div className="flex items-center gap-4">
                     <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-border bg-muted/40">
                       {fotoPreview ? (
-                        <img src={fotoPreview} alt="Pré-visualização" className="size-full object-cover" />
+                        <img src={fotoPreview} alt="Pré-visualização da foto do cadastrado" className="size-full object-cover" />
                       ) : (
                         <Camera className="size-7 text-muted-foreground" />
                       )}

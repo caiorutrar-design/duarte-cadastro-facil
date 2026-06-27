@@ -59,7 +59,17 @@ type DrillKind = "today" | "last7" | "last30" | "bairro" | "cidade" | "sexo";
 type DrillFilter = { kind: DrillKind; label: string; value?: string } | null;
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Administração — Cadastros Duarte" }, { name: "robots", content: "noindex,nofollow" }] }),
+  head: () => ({
+    meta: [
+      { title: "Painel Administrativo — Duarte Jr." },
+      { name: "description", content: "Painel administrativo interno para gerenciamento de cadastros do movimento Duarte Jr." },
+      { name: "robots", content: "noindex,nofollow" },
+      { property: "og:title", content: "Painel Administrativo — Duarte Jr." },
+      { property: "og:description", content: "Painel administrativo interno para gerenciamento de cadastros." },
+      { property: "og:url", content: "https://duarte-cadastro-facil.lovable.app/admin" },
+    ],
+    links: [{ rel: "canonical", href: "https://duarte-cadastro-facil.lovable.app/admin" }],
+  }),
   component: AdminPage,
 });
 
@@ -364,6 +374,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              aria-label="Pesquisa rápida por nome, telefone, cidade ou @instagram"
               placeholder="Pesquisa rápida (nome, telefone, cidade, @instagram)..."
               value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10"
             />
@@ -536,13 +547,14 @@ function FiltersBar(props: {
         <Button variant="ghost" size="sm" onClick={props.onClear}>Limpar</Button>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Input placeholder="Nome" value={props.filterNome} onChange={(e) => props.setFilterNome(e.target.value)} />
-        <Input placeholder="Telefone" value={props.filterTelefone} onChange={(e) => props.setFilterTelefone(e.target.value)} />
-        <Input placeholder="Localização (cidade, bairro, UF)" value={props.filterLocal} onChange={(e) => props.setFilterLocal(e.target.value)} />
-        <Input placeholder="@instagram" value={props.filterSocial} onChange={(e) => props.setFilterSocial(e.target.value)} />
+        <Input aria-label="Filtrar por nome" placeholder="Nome" value={props.filterNome} onChange={(e) => props.setFilterNome(e.target.value)} />
+        <Input aria-label="Filtrar por telefone" placeholder="Telefone" value={props.filterTelefone} onChange={(e) => props.setFilterTelefone(e.target.value)} />
+        <Input aria-label="Filtrar por localização (cidade, bairro, UF)" placeholder="Localização (cidade, bairro, UF)" value={props.filterLocal} onChange={(e) => props.setFilterLocal(e.target.value)} />
+        <Input aria-label="Filtrar por @instagram" placeholder="@instagram" value={props.filterSocial} onChange={(e) => props.setFilterSocial(e.target.value)} />
         <div>
-          <Label className="text-xs text-muted-foreground">Sexo</Label>
+          <Label htmlFor="filter-sexo" className="text-xs text-muted-foreground">Sexo</Label>
           <select
+            id="filter-sexo"
             value={props.filterSexo}
             onChange={(e) => props.setFilterSexo(e.target.value as "" | "M" | "F")}
             className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -553,12 +565,12 @@ function FiltersBar(props: {
           </select>
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Cadastrado de</Label>
-          <Input type="date" value={props.dataDe} onChange={(e) => props.setDataDe(e.target.value)} className="mt-1" />
+          <Label htmlFor="filter-data-de" className="text-xs text-muted-foreground">Cadastrado de</Label>
+          <Input id="filter-data-de" type="date" value={props.dataDe} onChange={(e) => props.setDataDe(e.target.value)} className="mt-1" />
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Cadastrado até</Label>
-          <Input type="date" value={props.dataAte} onChange={(e) => props.setDataAte(e.target.value)} className="mt-1" />
+          <Label htmlFor="filter-data-ate" className="text-xs text-muted-foreground">Cadastrado até</Label>
+          <Input id="filter-data-ate" type="date" value={props.dataAte} onChange={(e) => props.setDataAte(e.target.value)} className="mt-1" />
         </div>
       </div>
     </section>
