@@ -255,6 +255,83 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
   function clearFilters() {
     setFilterNome(""); setFilterTelefone(""); setFilterLocal("");
     setFilterSocial(""); setFilterSexo(""); setDataDe(""); setDataAte("");
+    setDrillFilter(null);
+  }
+
+  function ymd(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function handleDrill(kind: DrillKind, value?: string) {
+    // clear existing local filters first
+    setFilterNome(""); setFilterTelefone(""); setFilterLocal("");
+    setFilterSocial(""); setFilterSexo(""); setDataDe(""); setDataAte("");
+
+    const today = new Date();
+    if (kind === "today") {
+      const t = ymd(today);
+      setDataDe(t); setDataAte(t);
+      setDrillFilter({ kind, label: "Cadastrados hoje" });
+    } else if (kind === "last7") {
+      const start = new Date(today); start.setDate(start.getDate() - 6);
+      setDataDe(ymd(start)); setDataAte(ymd(today));
+      setDrillFilter({ kind, label: "Últimos 7 dias" });
+    } else if (kind === "last30") {
+      const start = new Date(today); start.setDate(start.getDate() - 29);
+      setDataDe(ymd(start)); setDataAte(ymd(today));
+      setDrillFilter({ kind, label: "Últimos 30 dias" });
+    } else if (kind === "bairro" && value) {
+      setFilterLocal(value);
+      setDrillFilter({ kind, label: `Bairro: ${value}`, value });
+    } else if (kind === "cidade" && value) {
+      setFilterLocal(value);
+      setDrillFilter({ kind, label: `Cidade: ${value}`, value });
+    } else if (kind === "sexo" && (value === "M" || value === "F")) {
+      setFilterSexo(value);
+      setDrillFilter({ kind, label: value === "M" ? "Sexo: Masculino" : "Sexo: Feminino", value });
+    }
+    setTab("cadastros");
+  }
+
+  function exportCsv() {
+    const cols: { key: keyof Row; label: string }[] = [
+      { key: "criado_em", label: "Data" },
+      { key: "nome", label: "Nome" },
+      { key: "cargo", label: "Cargo" },
+      { key: "sexo", label: "Sexo" },
+      { key: "telefone", label: "Telefone" },
+      { key: "email", label: "Email" },
+      { key: "instagram", label: "Instagram" },
+      { key: "cep", label: "CEP" },
+      { key: "endereco", label: "Endereço" },
+      { key: "bairro", label: "Bairro" },
+      { key: "cidade_endereco", label: "Cidade" },
+      { key: "uf", label: "UF" },
+      { key: "observacoes", label: "Observações" },
+    ];
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",;\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [cols.map((c) => escape(c.label)).join(";")];
+    filtered.forEach((r) => {
+      lines.push(cols.map((c) => {
+        let v: unknown = r[c.key];
+        if (c.key === "criado_em" && v) v = new Date(v as string).toLocaleString("pt-BR");
+        if (c.key === "telefone") v = formatPhoneDisplay(v as string);
+        return escape(v ?? "");
+      }).join(";"));
+    });
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cadastros-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`CSV exportado (${filtered.length} registro(s)).`);
   }
 
   return (
