@@ -209,6 +209,7 @@ function CadastroPage() {
       }
 
       toast.success("Cadastro realizado com sucesso!");
+      setAlreadyRegistered(false);
       setSuccess(true);
       setForm({
         nome: "", telefone: "", cargo: "", sexo: "",
