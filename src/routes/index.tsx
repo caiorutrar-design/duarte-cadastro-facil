@@ -191,6 +191,18 @@ function CadastroPage() {
 
 
       if (error) {
+        if ((error as { code?: string }).code === "23505") {
+          toast.success("Você já está cadastrado. Obrigado!");
+          setAlreadyRegistered(true);
+          setSuccess(true);
+          setForm({
+            nome: "", telefone: "", cargo: "", sexo: "",
+            instagram: "", observacoes: "",
+            cep: "", endereco: "", bairro: "", cidade_endereco: "", uf: "",
+          });
+          clearFoto();
+          return;
+        }
         console.error(error);
         toast.error("Não foi possível concluir seu cadastro. Tente novamente.");
         return;
