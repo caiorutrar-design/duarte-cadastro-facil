@@ -147,9 +147,10 @@ function CadastroPage() {
       }
 
       const ig = form.instagram.trim().replace(/^@+/, "");
+      const telefoneDigits = form.telefone.replace(/\D/g, "");
       const { error } = await supabase.from("cadastros_clientes").insert({
         nome: form.nome.trim(),
-        telefone: form.telefone.trim(),
+        telefone: telefoneDigits,
         cargo: form.cargo.trim() || null,
         sexo: form.sexo || null,
         instagram: ig ? `@${ig}` : null,
