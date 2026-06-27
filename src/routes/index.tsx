@@ -456,7 +456,7 @@ function Field({ id, label, required, icon, children, hideIconOnInput }: {
   );
 }
 
-function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number: string; message: string } | null }) {
+function SuccessState({ onReset, whats, alreadyRegistered }: { onReset: () => void; whats: { number: string; message: string } | null; alreadyRegistered?: boolean }) {
   const numberDigits = (whats?.number ?? "").replace(/\D/g, "");
   const hasWhats = numberDigits.length >= 10;
   const safeMessage = (whats?.message ?? "").replace(/\r\n/g, "\n").trim();
@@ -469,9 +469,13 @@ function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number
       <div className="mb-5 flex size-20 items-center justify-center rounded-full" style={{ background: "var(--gradient-hero)" }}>
         <CheckCircle2 className="size-10 text-white" />
       </div>
-      <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Cadastro confirmado!</h2>
+      <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
+        {alreadyRegistered ? "Você já faz parte!" : "Cadastro confirmado!"}
+      </h2>
       <p className="mt-3 max-w-md text-muted-foreground">
-        Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com novidades e convites para mobilizações na sua região.
+        {alreadyRegistered
+          ? "Obrigado! Identificamos que você já está cadastrado em nossa base. Não precisa cadastrar novamente — sua participação no movimento já está garantida."
+          : "Obrigado por se juntar ao movimento. Em breve nossa equipe entrará em contato com novidades e convites para mobilizações na sua região."}
       </p>
 
       {hasWhats && (
