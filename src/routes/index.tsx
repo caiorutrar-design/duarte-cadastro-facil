@@ -444,9 +444,11 @@ function SuccessState({ onReset, whats }: { onReset: () => void; whats: { number
           <div className="mt-4 flex justify-center rounded-xl bg-white p-4 shadow-inner">
             <QRCodeCanvas value={waUrl} size={180} includeMargin={false} level="M" />
           </div>
-          <p className="mt-3 text-xs italic text-muted-foreground">
-            "{whats!.message}"
-          </p>
+          {safeMessage && (
+            <p className="mt-3 text-xs italic text-muted-foreground">
+              "{safeMessage}"
+            </p>
+          )}
           <a
             href={waUrl}
             target="_blank"
