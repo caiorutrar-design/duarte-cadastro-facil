@@ -5,7 +5,7 @@ import {
   Loader2, LogOut, Search, Trash2, Lock, ArrowLeft, Users,
   MessageSquare, Eye, Pencil, Save, X, ImageIcon,
   LayoutDashboard, Database, FileSpreadsheet, FileText, Upload, Download,
-  Calendar, MapPin, TrendingUp, UserPlus,
+  Calendar, MapPin, TrendingUp, UserPlus, Filter, Building2, Mars, Venus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -15,6 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/theme-provider";
+import {
+  Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious,
+} from "@/components/ui/carousel";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -31,6 +34,17 @@ import {
   adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
+
+function formatPhoneDisplay(v: string | null | undefined) {
+  if (!v) return "";
+  const d = v.replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return v;
+}
+
+type DrillKind = "today" | "last7" | "last30" | "bairro" | "cidade" | "sexo";
+type DrillFilter = { kind: DrillKind; label: string; value?: string } | null;
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Administração — Cadastros Duarte" }, { name: "robots", content: "noindex,nofollow" }] }),
