@@ -346,10 +346,10 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           </p>
         </div>
         <form
-          className="flex w-full max-w-xl items-center gap-2"
+          className="flex w-full max-w-xl flex-wrap items-center gap-2"
           onSubmit={(e) => { e.preventDefault(); load(search); }}
         >
-          <div className="relative flex-1">
+          <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Pesquisa rápida (nome, telefone, cidade, @instagram)..."
@@ -358,6 +358,9 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
           </div>
           <Button type="submit" disabled={loading}>
             {loading ? <Loader2 className="size-4 animate-spin" /> : "Buscar"}
+          </Button>
+          <Button type="button" variant="outline" onClick={exportCsv} title="Exportar dados filtrados para CSV">
+            <Download className="mr-1 size-4" /> CSV
           </Button>
         </form>
       </div>
@@ -371,10 +374,21 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-6">
-          <DashboardTab rows={rows} loading={loading} />
+          <DashboardTab rows={rows} loading={loading} onDrill={handleDrill} />
         </TabsContent>
 
         <TabsContent value="cadastros" className="mt-6">
+          {drillFilter && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Filter className="size-4 text-primary" />
+                Filtro ativo: <span className="font-semibold">{drillFilter.label}</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={clearFilters}>
+                <X className="mr-1 size-3" /> Limpar filtro
+              </Button>
+            </div>
+          )}
           <FiltersBar
             filterNome={filterNome} setFilterNome={setFilterNome}
             filterTelefone={filterTelefone} setFilterTelefone={setFilterTelefone}
