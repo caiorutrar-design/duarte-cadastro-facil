@@ -435,7 +435,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
                       <td className="px-4 py-3 text-xs">{r.cargo ?? "—"}</td>
                       <td className="px-4 py-3 text-xs">{r.sexo === "M" ? "Masc." : r.sexo === "F" ? "Fem." : "—"}</td>
                       <td className="px-4 py-3">
-                        <div className="text-xs">{r.telefone}</div>
+                        <div className="text-xs">{formatPhoneDisplay(r.telefone)}</div>
                         {r.email && <div className="text-xs text-muted-foreground">{r.email}</div>}
                       </td>
                       <td className="px-4 py-3 text-xs">
