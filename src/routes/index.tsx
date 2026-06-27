@@ -23,7 +23,10 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "Faça parte do movimento. Cadastre-se e fique por dentro." },
       { property: "og:url", content: "https://duarte-cadastro-facil.lovable.app/" },
     ],
-    links: [{ rel: "canonical", href: "https://duarte-cadastro-facil.lovable.app/" }],
+    links: [
+      { rel: "canonical", href: "https://duarte-cadastro-facil.lovable.app/" },
+      { rel: "preload", as: "image", href: duarteLogo, fetchpriority: "high" },
+    ],
     scripts: [
       {
         type: "application/ld+json",
