@@ -579,7 +579,6 @@ function DashboardTab({ rows, loading, onDrill }: {
 
     let today = 0, last7 = 0, last30 = 0;
     const bairroMap = new Map<string, number>();
-    const cidadeMap = new Map<string, number>();
     const sexoMap = { M: 0, F: 0, "—": 0 };
     const dailyMap = new Map<string, number>();
 
@@ -599,26 +598,17 @@ function DashboardTab({ rows, loading, onDrill }: {
       if (dailyMap.has(key)) dailyMap.set(key, (dailyMap.get(key) ?? 0) + 1);
 
       if (r.bairro) bairroMap.set(r.bairro, (bairroMap.get(r.bairro) ?? 0) + 1);
-      if (r.cidade_endereco) cidadeMap.set(r.cidade_endereco, (cidadeMap.get(r.cidade_endereco) ?? 0) + 1);
       const sx = (r.sexo as "M" | "F" | null) ?? "—";
       sexoMap[sx]++;
     });
 
     const dailySeries = Array.from(dailyMap.entries()).map(([date, total]) => ({ date: date.slice(5), total }));
     const bairros = Array.from(bairroMap.entries())
-      .sort((a, b) => b[1] - a[1]).slice(0, 10)
+      .sort((a, b) => b[1] - a[1])
       .map(([name, total]) => ({ name, total }));
-    const cidades = Array.from(cidadeMap.entries())
-      .sort((a, b) => b[1] - a[1]).slice(0, 6)
-      .map(([name, total]) => ({ name, total }));
-    const sexoData = [
-      { name: "Masculino", value: sexoMap.M },
-      { name: "Feminino", value: sexoMap.F },
-      { name: "Não informado", value: sexoMap["—"] },
-    ].filter((d) => d.value > 0);
 
     return {
-      today, last7, last30, dailySeries, bairros, cidades, sexoData,
+      today, last7, last30, dailySeries, bairros,
       total: rows.length, sexoM: sexoMap.M, sexoF: sexoMap.F,
     };
   }, [rows]);
@@ -631,179 +621,81 @@ function DashboardTab({ rows, loading, onDrill }: {
     );
   }
 
-  const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--destructive))", "hsl(var(--muted-foreground))"];
-
   type CardSpec = {
     label: string; value: number; icon: React.ReactNode;
     gradient: string; ring: string; onClick?: () => void;
   };
-  const baseCards: CardSpec[] = [
+  const cards: CardSpec[] = [
     {
-      label: "Total cadastrado", value: stats.total,
+      label: "Total de cadastros", value: stats.total,
       icon: <Users className="size-6" />,
-      gradient: "from-blue-700 via-blue-600 to-blue-500",
-      ring: "ring-blue-400/40",
+      gradient: "from-[#0a2540] via-[#1e3a8a] to-[#1d4ed8]",
+      ring: "ring-blue-300/40",
     },
     {
       label: "Cadastrados hoje", value: stats.today,
       icon: <UserPlus className="size-6" />,
-      gradient: "from-amber-500 via-yellow-500 to-orange-500",
-      ring: "ring-yellow-400/40",
+      gradient: "from-[#facc15] via-[#f59e0b] to-[#ef4444]",
+      ring: "ring-amber-300/50",
       onClick: () => onDrill("today"),
     },
     {
       label: "Últimos 7 dias", value: stats.last7,
       icon: <Calendar className="size-6" />,
-      gradient: "from-sky-600 via-cyan-500 to-teal-500",
-      ring: "ring-cyan-400/40",
+      gradient: "from-[#38bdf8] via-[#0ea5e9] to-[#1d4ed8]",
+      ring: "ring-sky-300/50",
       onClick: () => onDrill("last7"),
     },
     {
       label: "Últimos 30 dias", value: stats.last30,
       icon: <TrendingUp className="size-6" />,
-      gradient: "from-red-600 via-rose-500 to-pink-500",
-      ring: "ring-rose-400/40",
+      gradient: "from-[#dc2626] via-[#b91c1c] to-[#0a2540]",
+      ring: "ring-red-300/50",
       onClick: () => onDrill("last30"),
     },
     {
       label: "Masculino", value: stats.sexoM,
       icon: <Mars className="size-6" />,
-      gradient: "from-blue-800 via-indigo-600 to-blue-500",
-      ring: "ring-indigo-400/40",
+      gradient: "from-[#0a2540] via-[#1d4ed8] to-[#38bdf8]",
+      ring: "ring-blue-300/50",
       onClick: () => onDrill("sexo", "M"),
     },
     {
       label: "Feminino", value: stats.sexoF,
       icon: <Venus className="size-6" />,
-      gradient: "from-pink-600 via-rose-500 to-red-500",
-      ring: "ring-pink-400/40",
+      gradient: "from-[#facc15] via-[#dc2626] to-[#0a2540]",
+      ring: "ring-yellow-300/50",
       onClick: () => onDrill("sexo", "F"),
     },
   ];
 
-  const bairroCards: CardSpec[] = stats.bairros.slice(0, 6).map((b) => ({
-    label: `Bairro: ${b.name}`, value: b.total,
-    icon: <MapPin className="size-6" />,
-    gradient: "from-yellow-500 via-amber-500 to-red-500",
-    ring: "ring-amber-400/40",
-    onClick: () => onDrill("bairro", b.name),
-  }));
-
-  const cidadeCards: CardSpec[] = stats.cidades.slice(0, 4).map((c) => ({
-    label: `Cidade: ${c.name}`, value: c.total,
-    icon: <Building2 className="size-6" />,
-    gradient: "from-cyan-600 via-sky-500 to-blue-500",
-    ring: "ring-sky-400/40",
-    onClick: () => onDrill("cidade", c.name),
-  }));
-
-  const allCards = [...baseCards, ...bairroCards, ...cidadeCards];
-
   return (
     <div className="space-y-6">
       <div>
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">
-            Métricas — clique em um card para filtrar
-          </h2>
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+          Métricas — clique em um card para filtrar a lista
+        </h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {cards.map((c, i) => <MetricCard key={i} {...c} />)}
         </div>
-        <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
-          <CarouselContent className="-ml-3">
-            {allCards.map((c, i) => (
-              <CarouselItem key={i} className="basis-[78%] pl-3 sm:basis-[45%] md:basis-1/3 lg:basis-1/4 xl:basis-[22%]">
-                <MetricCard {...c} />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="hidden sm:flex" />
-          <CarouselNext className="hidden sm:flex" />
-        </Carousel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold">Cadastros nos últimos 14 dias</h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.dailySeries}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      <BairrosChartSection bairros={stats.bairros} onDrill={onDrill} />
 
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <MapPin className="size-4 text-primary" /> Top 10 bairros alcançados
-          </h3>
-          {stats.bairros.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados de bairro ainda.</p>
-          ) : (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={stats.bairros} layout="vertical" margin={{ left: 8 }}
-                  onClick={(e) => {
-                    const name = (e?.activePayload?.[0]?.payload as { name?: string } | undefined)?.name;
-                    if (name) onDrill("bairro", name);
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} className="cursor-pointer" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+      <StrategicIntelligence bairros={stats.bairros} />
 
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold">Distribuição por sexo</h3>
-          {stats.sexoData.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p>
-          ) : (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={stats.sexoData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                    {stats.sexoData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Legend />
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold">Top cidades</h3>
-          {stats.cidades.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Sem dados.</p>
-          ) : (
-            <ul className="space-y-2">
-              {stats.cidades.map((c) => (
-                <li key={c.name}>
-                  <button
-                    type="button"
-                    onClick={() => onDrill("cidade", c.name)}
-                    className="flex w-full items-center justify-between rounded-md bg-muted/30 px-3 py-2 text-sm transition hover:bg-muted/60"
-                  >
-                    <span>{c.name}</span>
-                    <span className="font-semibold text-primary">{c.total}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <h3 className="mb-3 text-sm font-semibold">Cadastros nos últimos 14 dias</h3>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats.dailySeries}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="total" fill={BRAND.sky} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
@@ -822,16 +714,16 @@ function MetricCard({ icon, label, value, gradient, ring, onClick }: {
       onClick={onClick}
       className={`group relative h-full w-full overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-5 text-left text-white shadow-lg ring-1 ${ring} transition-transform ${interactive ? "cursor-pointer hover:-translate-y-1 hover:shadow-xl active:scale-[0.98]" : ""}`}
     >
-      <div aria-hidden className="absolute -right-6 -top-6 size-24 rounded-full bg-white/10 blur-2xl" />
+      <div aria-hidden className="absolute -right-6 -top-6 size-24 rounded-full bg-white/15 blur-2xl" />
       <div className="relative flex items-start justify-between gap-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-white/85">{label}</span>
-        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur">
+        <span className="text-xs font-semibold uppercase tracking-wider text-white/90">{label}</span>
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-white/25 text-white backdrop-blur">
           {icon}
         </span>
       </div>
       <p className="relative mt-3 text-4xl font-extrabold tabular-nums drop-shadow-sm">{value}</p>
       {interactive && (
-        <p className="relative mt-1 text-[11px] font-medium uppercase tracking-wider text-white/80">
+        <p className="relative mt-1 text-[11px] font-medium uppercase tracking-wider text-white/85">
           Clique para filtrar →
         </p>
       )}
@@ -839,7 +731,243 @@ function MetricCard({ icon, label, value, gradient, ring, onClick }: {
   );
 }
 
-/* -------------------- Import / Export Tab -------------------- */
+/* -------------------- Bairros chart with Bar / Pie / Line toggle -------------------- */
+
+function BairrosChartSection({ bairros, onDrill }: {
+  bairros: { name: string; total: number }[];
+  onDrill: (kind: DrillKind, value?: string) => void;
+}) {
+  const [mode, setMode] = useState<"bar" | "pie" | "line">("bar");
+  const data = bairros.slice(0, 12);
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold">
+            <MapPin className="size-5 text-primary" /> Distribuição por bairro
+          </h3>
+          <p className="text-xs text-muted-foreground">Top {data.length} bairros — clique para filtrar a lista.</p>
+        </div>
+        <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+          {([
+            { v: "bar", label: "Barras", Icon: BarChart3 },
+            { v: "pie", label: "Pizza", Icon: PieIcon },
+            { v: "line", label: "Linhas", Icon: LineIcon },
+          ] as const).map(({ v, label, Icon }) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setMode(v)}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition ${mode === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Icon className="size-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {data.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">Sem dados de bairro ainda.</p>
+      ) : (
+        <div className="h-80 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {mode === "bar" ? (
+              <BarChart
+                data={data} layout="vertical" margin={{ left: 8 }}
+                onClick={(e) => {
+                  const name = (e?.activePayload?.[0]?.payload as { name?: string } | undefined)?.name;
+                  if (name) onDrill("bairro", name);
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="total" radius={[0, 6, 6, 0]} className="cursor-pointer">
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={BAIRRO_PALETTE[i % BAIRRO_PALETTE.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : mode === "pie" ? (
+              <PieChart>
+                <Pie
+                  data={data} dataKey="total" nameKey="name" cx="50%" cy="50%"
+                  outerRadius={110} label={(e: { name?: string }) => e?.name ?? ""}
+                  onClick={(e: { name?: string }) => e?.name && onDrill("bairro", e.name)}
+                  className="cursor-pointer"
+                >
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={BAIRRO_PALETTE[i % BAIRRO_PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            ) : (
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-25} textAnchor="end" height={70} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line
+                  type="monotone" dataKey="total" stroke={BRAND.red} strokeWidth={3}
+                  dot={{ fill: BRAND.yellow, stroke: BRAND.navy, strokeWidth: 2, r: 5 }}
+                  activeDot={{ r: 7, fill: BRAND.sky }}
+                />
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* -------------------- Strategic Intelligence widget -------------------- */
+
+function StrategicIntelligence({ bairros }: { bairros: { name: string; total: number }[] }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(
+    () => bairros.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase())),
+    [bairros, query],
+  );
+
+  function toggle(name: string) {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(name)) n.delete(name); else n.add(name);
+      return n;
+    });
+  }
+
+  const picked = bairros.filter((b) => selected.has(b.name));
+  const sum = picked.reduce((s, b) => s + b.total, 0);
+  const shares = picked.map((b) => ({
+    name: b.name, total: b.total,
+    pct: sum > 0 ? Math.round((b.total / sum) * 1000) / 10 : 0,
+  })).sort((a, b) => b.total - a.total);
+
+  const insight = useMemo(() => {
+    if (picked.length < 2) return null;
+    const top = shares[0];
+    const bottom = shares[shares.length - 1];
+    const names = shares.map((s) => s.name).join(" + ");
+    const breakdown = shares.map((s) => `${s.name} ${s.pct}%`).join(", ");
+    const gap = top.pct - bottom.pct;
+    let action = "";
+    if (gap >= 20) {
+      action = `Priorizar ação de rua e disparos de WhatsApp focados em propostas de infraestrutura em ${bottom.name} para equilibrar a base do candidato em relação a ${top.name}.`;
+    } else if (gap >= 8) {
+      action = `${top.name} lidera com folga moderada; reforçar presença em ${bottom.name} com lives, panfletagem e contatos diretos para nivelar a base.`;
+    } else {
+      action = `Distribuição equilibrada entre ${names}. Sustentar a frequência atual e ampliar para bairros vizinhos com menor cobertura.`;
+    }
+    return `Os bairros selecionados (${names}) somam ${sum} cadastros. ${breakdown}. Sugestão de Ação: ${action}`;
+  }, [picked.length, shares, sum]);
+
+  return (
+    <section className="rounded-2xl border-2 border-yellow-400/40 bg-gradient-to-br from-[#0a2540] via-[#0a2540] to-[#1d4ed8] p-5 text-white shadow-xl">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-base font-semibold">
+            <Sparkles className="size-5 text-yellow-300" /> Inteligência Estratégica de Bairros
+          </h3>
+          <p className="text-xs text-white/75">
+            Combine dois ou mais bairros para gerar um insight de ação automatizado.
+          </p>
+        </div>
+        {selected.size > 0 && (
+          <Button size="sm" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+            onClick={() => setSelected(new Set())}>
+            <X className="mr-1 size-3" /> Limpar seleção
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-xl bg-white/10 p-3 backdrop-blur">
+          <Input
+            placeholder="Buscar bairro..." value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="mb-2 border-white/30 bg-white/15 text-white placeholder:text-white/60"
+          />
+          <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+            {filtered.length === 0 ? (
+              <p className="py-6 text-center text-xs text-white/70">Nenhum bairro encontrado.</p>
+            ) : filtered.map((b) => {
+              const checked = selected.has(b.name);
+              return (
+                <label key={b.name}
+                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition ${checked ? "bg-yellow-400/20 ring-1 ring-yellow-300/60" : "hover:bg-white/10"}`}>
+                  <span className="flex items-center gap-2">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggle(b.name)}
+                      className="border-white/60 data-[state=checked]:border-yellow-300 data-[state=checked]:bg-yellow-300 data-[state=checked]:text-[#0a2540]"
+                    />
+                    <span className="font-medium text-white">{b.name}</span>
+                  </span>
+                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold text-white">{b.total}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white/10 p-4 backdrop-blur">
+          {picked.length === 0 ? (
+            <p className="flex h-full items-center justify-center text-center text-sm text-white/75">
+              Selecione pelo menos 2 bairros à esquerda para ver o somatório e o insight de ação.
+            </p>
+          ) : (
+            <>
+              <div className="mb-3 flex items-baseline gap-3">
+                <span className="text-4xl font-extrabold text-yellow-300 tabular-nums">{sum}</span>
+                <span className="text-sm text-white/80">cadastros somados em {picked.length} bairro(s)</span>
+              </div>
+              <ul className="mb-4 space-y-2">
+                {shares.map((s, i) => (
+                  <li key={s.name}>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="font-medium text-white">{s.name}</span>
+                      <span className="text-white/80">{s.total} · <strong className="text-yellow-300">{s.pct}%</strong></span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-white/15">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${s.pct}%`,
+                          background: BAIRRO_PALETTE[i % BAIRRO_PALETTE.length],
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {insight && picked.length >= 2 && (
+                <div className="rounded-lg border border-yellow-300/40 bg-yellow-300/10 p-3 text-sm leading-relaxed text-white">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-yellow-300">
+                    <Sparkles className="size-3.5" /> Insight de Ação
+                  </div>
+                  {insight}
+                </div>
+              )}
+              {picked.length === 1 && (
+                <p className="text-center text-xs text-white/70">Adicione mais um bairro para gerar a análise comparativa.</p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 
 const EXPORT_COLS: { key: keyof Row; label: string }[] = [
   { key: "criado_em", label: "Data" },
