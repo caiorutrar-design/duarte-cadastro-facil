@@ -263,7 +263,7 @@ function CadastroPage() {
 
         <section className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-[var(--shadow-elegant)] ring-1 ring-black/5 sm:p-10 dark:ring-white/5">
           {success ? (
-            <SuccessState onReset={() => setSuccess(false)} whats={whats} />
+            <SuccessState onReset={() => { setSuccess(false); setAlreadyRegistered(false); }} whats={whats} alreadyRegistered={alreadyRegistered} />
           ) : (
             <>
               <div className="mb-6">
