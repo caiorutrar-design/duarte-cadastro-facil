@@ -238,7 +238,7 @@ function CadastroPage() {
 
       <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-12 sm:py-16">
         <header className="mb-8 flex flex-col items-center text-center">
-          <img src={duarteLogo} alt="Duarte Jr." className="h-20 w-auto drop-shadow-2xl sm:h-24" />
+          <img src={duarteLogo} alt="Duarte Jr." width="1701" height="624" fetchPriority="high" className="h-20 w-auto drop-shadow-2xl sm:h-24" />
           <p className={`mt-4 max-w-xl text-sm font-medium uppercase tracking-[0.2em] sm:text-base ${heroMutedClass}`}>
             Movimento Duarte • Cadastro Oficial
           </p>
