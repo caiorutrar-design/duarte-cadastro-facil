@@ -182,6 +182,7 @@ function AdminDashboard({ token, onAuthFail }: { token: string; onAuthFail: () =
   const [deleting, setDeleting] = useState(false);
   const [selected, setSelected] = useState<Row | null>(null);
   const [tab, setTab] = useState("dashboard");
+  const [drillFilter, setDrillFilter] = useState<DrillFilter>(null);
 
   const router = useRouter();
   const listFn = useServerFn(adminListCadastros);
