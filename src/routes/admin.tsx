@@ -1109,7 +1109,10 @@ function ImportExportTab({ token, rows, allRows, onReload }: {
       }
 
       const res = await bulkFn({ data: { token, rows: norm } });
+      try { localStorage.setItem("duarte:last-import-batch", JSON.stringify({ batchId: res.batchId, count: res.inserted, at: new Date().toISOString() })); } catch { /* ignore */ }
+      window.dispatchEvent(new Event("duarte:import-done"));
       toast.success(`${res.inserted} cadastro(s) importado(s).`);
+
       onReload();
     } catch (err) {
       console.error(err);
