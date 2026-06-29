@@ -147,11 +147,30 @@ export const adminBulkInsert = createServerFn({ method: "POST" })
       cidade_endereco: r.cidade_endereco ?? null,
       uf: r.uf ? r.uf.toUpperCase() : null,
     }));
-    const { error, count } = await supabaseAdmin
+    const { error, data: inserted } = await supabaseAdmin
       .from("cadastros_clientes")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(payload as any, { count: "exact" });
+      .insert(payload as any)
+      .select("id");
     if (error) throw new Error(error.message);
-    return { inserted: count ?? payload.length };
+    const ids = (inserted ?? []).map((r: { id: string }) => r.id);
+    return { inserted: ids.length, ids };
   });
+
+export const adminBulkDelete = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    tokenSchema.extend({ ids: z.array(z.string().uuid()).min(1).max(5000) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
+    verifyToken(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error, count } = await supabaseAdmin
+      .from("cadastros_clientes")
+      .delete({ count: "exact" })
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { deleted: count ?? data.ids.length };
+  });
+
 
