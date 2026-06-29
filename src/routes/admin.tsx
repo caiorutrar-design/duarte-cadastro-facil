@@ -1410,22 +1410,38 @@ function CadastroDetailDialog({
 
         <div className="grid gap-6 sm:grid-cols-[160px_1fr]">
           <div className="flex flex-col items-center gap-2">
-            <div className="flex size-36 items-center justify-center overflow-hidden rounded-xl border bg-muted">
+            <button
+              type="button"
+              onClick={() => fotoFullUrl && setLightboxOpen(true)}
+              disabled={!fotoFullUrl}
+              className="group relative flex size-36 items-center justify-center overflow-hidden rounded-xl border bg-muted transition hover:ring-2 hover:ring-primary disabled:cursor-default disabled:hover:ring-0"
+              aria-label={fotoFullUrl ? "Ampliar foto" : "Sem foto"}
+            >
               {fotoLoading ? (
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
               ) : fotoUrl ? (
-                <img src={fotoUrl} alt={`Foto de ${row.nome}`} className="size-full object-cover" />
+                <img
+                  src={fotoUrl}
+                  alt={`Foto de ${row.nome}`}
+                  loading="lazy"
+                  decoding="async"
+                  className="size-full object-cover transition group-hover:scale-105"
+                />
               ) : (
                 <ImageIcon className="size-8 text-muted-foreground" />
               )}
-            </div>
-            {fotoUrl && (
-              <a href={fotoUrl} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-primary underline-offset-2 hover:underline">
-                Abrir foto
-              </a>
+            </button>
+            {fotoFullUrl && (
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                className="text-xs text-primary underline-offset-2 hover:underline"
+              >
+                Ver em alta qualidade
+              </button>
             )}
           </div>
+
 
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Nome" editing={editing} value={form.nome} onChange={(v) => set("nome", v)} />
