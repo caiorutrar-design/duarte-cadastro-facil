@@ -1511,9 +1511,35 @@ function CadastroDetailDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-5xl border-none bg-transparent p-0 shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Foto em alta qualidade de {row.nome}</DialogTitle>
+          </DialogHeader>
+          {fotoFullUrl && (
+            <img
+              src={fotoFullUrl}
+              alt={`Foto em alta qualidade de ${row.nome}`}
+              className="mx-auto max-h-[85vh] w-auto rounded-xl object-contain"
+            />
+          )}
+          <div className="mt-2 text-center">
+            <a
+              href={fotoFullUrl ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-white/80 underline-offset-2 hover:underline"
+            >
+              Abrir em nova aba
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
+
 
 function DetailField({ label, value, editing, onChange }: {
   label: string; value: string; editing: boolean; onChange: (v: string) => void;
