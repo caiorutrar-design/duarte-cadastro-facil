@@ -1143,6 +1143,9 @@ function ImportExportTab({ token, rows, allRows, onReload }: {
 
       const res = await bulkFn({ data: { token, rows: norm } });
       toast.success(`${res.inserted} cadastro(s) importado(s).`);
+      if (res.ids && res.ids.length) {
+        persistLastImport({ ids: res.ids, at: new Date().toISOString() });
+      }
       onReload();
     } catch (err) {
       console.error(err);
