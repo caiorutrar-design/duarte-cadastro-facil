@@ -1328,7 +1328,9 @@ function CadastroDetailDialog({
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Row | null>(null);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+  const [fotoFullUrl, setFotoFullUrl] = useState<string | null>(null);
   const [fotoLoading, setFotoLoading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const updateFn = useServerFn(adminUpdateCadastro);
   const fotoFn = useServerFn(adminGetFotoUrl);
 
@@ -1336,14 +1338,28 @@ function CadastroDetailDialog({
     setEditing(false);
     setForm(row);
     setFotoUrl(null);
+    setFotoFullUrl(null);
+    setLightboxOpen(false);
     if (row?.foto_url) {
       setFotoLoading(true);
       fotoFn({ data: { token, path: row.foto_url } })
-        .then((r) => setFotoUrl(r.url))
-        .catch(() => setFotoUrl(null))
+        .then((r) => {
+          setFotoUrl(r.thumbUrl ?? r.url);
+          setFotoFullUrl(r.fullUrl ?? r.url);
+          // Pré-carrega a versão grande em segundo plano
+          if (r.fullUrl) {
+            const img = new Image();
+            img.src = r.fullUrl;
+          }
+        })
+        .catch(() => {
+          setFotoUrl(null);
+          setFotoFullUrl(null);
+        })
         .finally(() => setFotoLoading(false));
     }
   }, [row, token, fotoFn]);
+
 
   if (!row || !form) return null;
 
