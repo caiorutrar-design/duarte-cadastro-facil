@@ -1201,7 +1201,27 @@ function ImportExportTab({ token, rows, allRows, onReload }: {
             onChange={handleImport}
           />
         </div>
+
+        {lastImport && lastImport.ids.length > 0 && (
+          <div className="mt-4 flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs">
+              <p className="font-medium">Última importação: {lastImport.ids.length} cadastro(s)</p>
+              <p className="text-muted-foreground">
+                em {new Date(lastImport.at).toLocaleString("pt-BR")}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="destructive" onClick={handleUndoImport} disabled={undoing}>
+                {undoing ? <><Loader2 className="mr-2 size-4 animate-spin" /> Removendo...</> : "Desfazer importação"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => persistLastImport(null)} disabled={undoing}>
+                Dispensar
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
+
     </div>
   );
 }
