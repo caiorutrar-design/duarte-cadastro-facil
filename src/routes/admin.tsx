@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import {
   adminLogin, adminListCadastros, adminDeleteCadastro,
-  adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
+  adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert, adminBulkDelete,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
 
