@@ -133,6 +133,8 @@ export const adminBulkInsert = createServerFn({ method: "POST" })
     const { verifyToken } = await import("./admin-token.server");
     verifyToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { randomUUID } = await import("node:crypto");
+    const batchId = randomUUID();
     const payload = data.rows.map((r) => ({
       nome: r.nome,
       telefone: r.telefone,
@@ -146,12 +148,86 @@ export const adminBulkInsert = createServerFn({ method: "POST" })
       bairro: r.bairro ?? null,
       cidade_endereco: r.cidade_endereco ?? null,
       uf: r.uf ? r.uf.toUpperCase() : null,
+      import_batch_id: batchId,
     }));
     const { error, count } = await supabaseAdmin
       .from("cadastros_clientes")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(payload as any, { count: "exact" });
     if (error) throw new Error(error.message);
-    return { inserted: count ?? payload.length };
+    return { inserted: count ?? payload.length, batchId };
   });
+
+export const adminListImportBatches = createServerFn({ method: "POST" })
+  .inputValidator((data) => tokenSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
+    verifyToken(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("cadastros_clientes")
+      .select("import_batch_id, criado_em")
+      .not("import_batch_id", "is", null)
+      .order("criado_em", { ascending: false })
+      .limit(5000);
+    if (error) throw new Error(error.message);
+    const map = new Map<string, { batchId: string; count: number; first: string; last: string }>();
+    for (const r of rows ?? []) {
+      const id = (r as { import_batch_id: string | null }).import_batch_id;
+      const t = (r as { criado_em: string }).criado_em;
+      if (!id) continue;
+      const cur = map.get(id);
+      if (!cur) map.set(id, { batchId: id, count: 1, first: t, last: t });
+      else {
+        cur.count++;
+        if (t < cur.first) cur.first = t;
+        if (t > cur.last) cur.last = t;
+      }
+    }
+    const batches = Array.from(map.values()).sort((a, b) => (a.last < b.last ? 1 : -1)).slice(0, 20);
+    return { batches };
+  });
+
+export const adminDeleteImportBatch = createServerFn({ method: "POST" })
+  .inputValidator((data) => tokenSchema.extend({ batchId: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
+    verifyToken(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error, count } = await supabaseAdmin
+      .from("cadastros_clientes")
+      .delete({ count: "exact" })
+      .eq("import_batch_id", data.batchId);
+    if (error) throw new Error(error.message);
+    return { deleted: count ?? 0 };
+  });
+
+export const adminDeleteByDateRange = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    tokenSchema.extend({
+      from: z.string().min(1),
+      to: z.string().min(1),
+      onlyImported: z.boolean().optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { verifyToken } = await import("./admin-token.server");
+    const fromD = new Date(data.from);
+    const toD = new Date(data.to);
+    if (isNaN(fromD.getTime()) || isNaN(toD.getTime()) || fromD >= toD) {
+      throw new Error("Intervalo inválido.");
+    }
+    verifyToken(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("cadastros_clientes")
+      .delete({ count: "exact" })
+      .gte("criado_em", fromD.toISOString())
+      .lte("criado_em", toD.toISOString());
+    if (data.onlyImported) q = q.not("import_batch_id", "is", null);
+    const { error, count } = await q;
+    if (error) throw new Error(error.message);
+    return { deleted: count ?? 0 };
+  });
+
 
