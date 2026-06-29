@@ -31,8 +31,10 @@ import {
 import {
   adminLogin, adminListCadastros, adminDeleteCadastro,
   adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
+  adminListImportBatches, adminDeleteImportBatch, adminDeleteByDateRange,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
+
 
 /* Brand palette — Azul Marinho, Amarelo, Vermelho, Azul Claro */
 const BRAND = {
