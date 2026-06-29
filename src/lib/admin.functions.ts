@@ -103,12 +103,21 @@ export const adminGetFotoUrl = createServerFn({ method: "POST" })
     const { verifyToken } = await import("./admin-token.server");
     verifyToken(data.token);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: signed, error } = await supabaseAdmin.storage
-      .from("cadastros-fotos")
-      .createSignedUrl(data.path, 60 * 10);
-    if (error) throw new Error(error.message);
-    return { url: signed.signedUrl };
+    const bucket = supabaseAdmin.storage.from("cadastros-fotos");
+    const expires = 60 * 30;
+    const [thumb, full] = await Promise.all([
+      bucket.createSignedUrl(data.path, expires, {
+        transform: { width: 240, height: 240, resize: "cover", quality: 70 },
+      }),
+      bucket.createSignedUrl(data.path, expires, {
+        transform: { width: 1600, quality: 90 },
+      }),
+    ]);
+    if (thumb.error) throw new Error(thumb.error.message);
+    if (full.error) throw new Error(full.error.message);
+    return { url: thumb.data.signedUrl, thumbUrl: thumb.data.signedUrl, fullUrl: full.data.signedUrl };
   });
+
 
 const importRowSchema = z.object({
   nome: z.string().trim().min(2).max(120),

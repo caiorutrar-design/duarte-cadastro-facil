@@ -1328,7 +1328,9 @@ function CadastroDetailDialog({
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Row | null>(null);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
+  const [fotoFullUrl, setFotoFullUrl] = useState<string | null>(null);
   const [fotoLoading, setFotoLoading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const updateFn = useServerFn(adminUpdateCadastro);
   const fotoFn = useServerFn(adminGetFotoUrl);
 
@@ -1336,14 +1338,28 @@ function CadastroDetailDialog({
     setEditing(false);
     setForm(row);
     setFotoUrl(null);
+    setFotoFullUrl(null);
+    setLightboxOpen(false);
     if (row?.foto_url) {
       setFotoLoading(true);
       fotoFn({ data: { token, path: row.foto_url } })
-        .then((r) => setFotoUrl(r.url))
-        .catch(() => setFotoUrl(null))
+        .then((r) => {
+          setFotoUrl(r.thumbUrl ?? r.url);
+          setFotoFullUrl(r.fullUrl ?? r.url);
+          // Pré-carrega a versão grande em segundo plano
+          if (r.fullUrl) {
+            const img = new Image();
+            img.src = r.fullUrl;
+          }
+        })
+        .catch(() => {
+          setFotoUrl(null);
+          setFotoFullUrl(null);
+        })
         .finally(() => setFotoLoading(false));
     }
   }, [row, token, fotoFn]);
+
 
   if (!row || !form) return null;
 
@@ -1394,22 +1410,38 @@ function CadastroDetailDialog({
 
         <div className="grid gap-6 sm:grid-cols-[160px_1fr]">
           <div className="flex flex-col items-center gap-2">
-            <div className="flex size-36 items-center justify-center overflow-hidden rounded-xl border bg-muted">
+            <button
+              type="button"
+              onClick={() => fotoFullUrl && setLightboxOpen(true)}
+              disabled={!fotoFullUrl}
+              className="group relative flex size-36 items-center justify-center overflow-hidden rounded-xl border bg-muted transition hover:ring-2 hover:ring-primary disabled:cursor-default disabled:hover:ring-0"
+              aria-label={fotoFullUrl ? "Ampliar foto" : "Sem foto"}
+            >
               {fotoLoading ? (
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
               ) : fotoUrl ? (
-                <img src={fotoUrl} alt={`Foto de ${row.nome}`} className="size-full object-cover" />
+                <img
+                  src={fotoUrl}
+                  alt={`Foto de ${row.nome}`}
+                  loading="lazy"
+                  decoding="async"
+                  className="size-full object-cover transition group-hover:scale-105"
+                />
               ) : (
                 <ImageIcon className="size-8 text-muted-foreground" />
               )}
-            </div>
-            {fotoUrl && (
-              <a href={fotoUrl} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-primary underline-offset-2 hover:underline">
-                Abrir foto
-              </a>
+            </button>
+            {fotoFullUrl && (
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                className="text-xs text-primary underline-offset-2 hover:underline"
+              >
+                Ver em alta qualidade
+              </button>
             )}
           </div>
+
 
           <div className="grid gap-3 sm:grid-cols-2">
             <DetailField label="Nome" editing={editing} value={form.nome} onChange={(v) => set("nome", v)} />
@@ -1479,9 +1511,35 @@ function CadastroDetailDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-5xl border-none bg-transparent p-0 shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Foto em alta qualidade de {row.nome}</DialogTitle>
+          </DialogHeader>
+          {fotoFullUrl && (
+            <img
+              src={fotoFullUrl}
+              alt={`Foto em alta qualidade de ${row.nome}`}
+              className="mx-auto max-h-[85vh] w-auto rounded-xl object-contain"
+            />
+          )}
+          <div className="mt-2 text-center">
+            <a
+              href={fotoFullUrl ?? "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-white/80 underline-offset-2 hover:underline"
+            >
+              Abrir em nova aba
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
+
 
 function DetailField({ label, value, editing, onChange }: {
   label: string; value: string; editing: boolean; onChange: (v: string) => void;
