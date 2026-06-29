@@ -31,8 +31,10 @@ import {
 import {
   adminLogin, adminListCadastros, adminDeleteCadastro,
   adminUpdateCadastro, adminGetFotoUrl, adminBulkInsert,
+  adminListImportBatches, adminDeleteImportBatch, adminDeleteByDateRange,
 } from "@/lib/admin.functions";
 import { getWhatsappConfig, saveWhatsappConfig } from "@/lib/config.functions";
+
 
 /* Brand palette — Azul Marinho, Amarelo, Vermelho, Azul Claro */
 const BRAND = {
@@ -1107,7 +1109,10 @@ function ImportExportTab({ token, rows, allRows, onReload }: {
       }
 
       const res = await bulkFn({ data: { token, rows: norm } });
+      try { localStorage.setItem("duarte:last-import-batch", JSON.stringify({ batchId: res.batchId, count: res.inserted, at: new Date().toISOString() })); } catch { /* ignore */ }
+      window.dispatchEvent(new Event("duarte:import-done"));
       toast.success(`${res.inserted} cadastro(s) importado(s).`);
+
       onReload();
     } catch (err) {
       console.error(err);
@@ -1164,9 +1169,149 @@ function ImportExportTab({ token, rows, allRows, onReload }: {
           />
         </div>
       </section>
+
+      <div className="lg:col-span-2">
+        <RevertImportSection token={token} onReload={onReload} />
+      </div>
     </div>
   );
 }
+
+/* -------------------- Revert Import Section -------------------- */
+
+type Batch = { batchId: string; count: number; first: string; last: string };
+
+function RevertImportSection({ token, onReload }: { token: string; onReload: () => void }) {
+  const listFn = useServerFn(adminListImportBatches);
+  const delBatchFn = useServerFn(adminDeleteImportBatch);
+  const delRangeFn = useServerFn(adminDeleteByDateRange);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [working, setWorking] = useState<string | null>(null);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [onlyImported, setOnlyImported] = useState(true);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await listFn({ data: { token } });
+      setBatches(res.batches);
+    } catch (e) {
+      toast.error((e as Error).message || "Falha ao carregar lotes.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    const h = () => load();
+    window.addEventListener("duarte:import-done", h);
+    return () => window.removeEventListener("duarte:import-done", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function revertBatch(b: Batch) {
+    if (!window.confirm(`Reverter este lote? ${b.count} cadastro(s) serão removidos permanentemente.`)) return;
+    setWorking(b.batchId);
+    try {
+      const res = await delBatchFn({ data: { token, batchId: b.batchId } });
+      toast.success(`${res.deleted} cadastro(s) removido(s).`);
+      await load();
+      onReload();
+    } catch (e) {
+      toast.error((e as Error).message || "Falha ao reverter.");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function deleteRange() {
+    if (!from || !to) { toast.error("Informe data/hora inicial e final."); return; }
+    if (!window.confirm(`Excluir cadastros entre ${from} e ${to}${onlyImported ? " (apenas importados)" : ""}?`)) return;
+    setWorking("range");
+    try {
+      const res = await delRangeFn({ data: { token, from: new Date(from).toISOString(), to: new Date(to).toISOString(), onlyImported } });
+      toast.success(`${res.deleted} cadastro(s) removido(s).`);
+      await load();
+      onReload();
+    } catch (e) {
+      toast.error((e as Error).message || "Falha ao excluir.");
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-destructive/40 bg-card p-5 shadow-sm">
+      <h3 className="mb-1 flex items-center gap-2 text-base font-semibold text-destructive">
+        <Trash2 className="size-5" /> Reverter importações
+      </h3>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Cada importação recebe um identificador. Use os botões abaixo para desfazer um lote inteiro, ou exclua por intervalo de data/hora (útil para importações antigas).
+      </p>
+
+      <div className="mb-5">
+        <div className="mb-2 flex items-center justify-between">
+          <h4 className="text-sm font-semibold">Lotes recentes</h4>
+          <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+            {loading ? <Loader2 className="size-4 animate-spin" /> : "Atualizar"}
+          </Button>
+        </div>
+        {batches.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum lote de importação registrado.</p>
+        ) : (
+          <div className="space-y-2">
+            {batches.map((b) => (
+              <div key={b.batchId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm">
+                <div>
+                  <div className="font-medium">{b.count} cadastro(s)</div>
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(b.last).toLocaleString("pt-BR")} · <code className="font-mono">{b.batchId.slice(0, 8)}</code>
+                  </div>
+                </div>
+                <Button size="sm" variant="destructive" onClick={() => revertBatch(b)} disabled={working === b.batchId}>
+                  {working === b.batchId ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
+                  Reverter
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border p-3">
+        <h4 className="mb-2 text-sm font-semibold">Excluir por intervalo de data/hora</h4>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Para importações feitas antes deste recurso (sem identificador), informe o intervalo aproximado em que ocorreram.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="rev-from" className="text-xs">De</Label>
+            <Input id="rev-from" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="rev-to" className="text-xs">Até</Label>
+            <Input id="rev-to" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-xs">
+          <Checkbox checked={onlyImported} onCheckedChange={(v) => setOnlyImported(!!v)} />
+          Excluir somente cadastros vindos de importações (preserva cadastros feitos pelo formulário)
+        </label>
+        <div className="mt-3 flex justify-end">
+          <Button variant="destructive" onClick={deleteRange} disabled={working === "range"}>
+            {working === "range" ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
+            Excluir cadastros no intervalo
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 
 /* -------------------- Detail Dialog -------------------- */
 

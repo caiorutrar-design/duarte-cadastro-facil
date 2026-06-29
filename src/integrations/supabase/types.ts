@@ -25,6 +25,7 @@ export type Database = {
           endereco: string | null
           foto_url: string | null
           id: string
+          import_batch_id: string | null
           instagram: string | null
           municipio: string | null
           nome: string
@@ -43,6 +44,7 @@ export type Database = {
           endereco?: string | null
           foto_url?: string | null
           id?: string
+          import_batch_id?: string | null
           instagram?: string | null
           municipio?: string | null
           nome: string
@@ -61,6 +63,7 @@ export type Database = {
           endereco?: string | null
           foto_url?: string | null
           id?: string
+          import_batch_id?: string | null
           instagram?: string | null
           municipio?: string | null
           nome?: string
