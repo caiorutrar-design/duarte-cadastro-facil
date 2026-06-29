@@ -1002,7 +1002,42 @@ function ImportExportTab({ token, rows, allRows, onReload }: {
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [lastImport, setLastImport] = useState<{ ids: string[]; at: string } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem("admin_last_import");
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
   const bulkFn = useServerFn(adminBulkInsert);
+  const undoFn = useServerFn(adminBulkDelete);
+
+  function persistLastImport(v: { ids: string[]; at: string } | null) {
+    setLastImport(v);
+    try {
+      if (v) window.localStorage.setItem("admin_last_import", JSON.stringify(v));
+      else window.localStorage.removeItem("admin_last_import");
+    } catch { /* ignore */ }
+  }
+
+  async function handleUndoImport() {
+    if (!lastImport || lastImport.ids.length === 0) return;
+    if (!window.confirm(`Remover ${lastImport.ids.length} cadastro(s) da última importação? Esta ação não pode ser desfeita.`)) return;
+    setUndoing(true);
+    try {
+      const res = await undoFn({ data: { token, ids: lastImport.ids } });
+      toast.success(`${res.deleted} cadastro(s) removido(s).`);
+      persistLastImport(null);
+      onReload();
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao desfazer a importação.");
+    } finally {
+      setUndoing(false);
+    }
+  }
+
 
   function buildExportRows(source: Row[]) {
     return source.map((r) => {
